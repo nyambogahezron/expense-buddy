@@ -2,6 +2,7 @@ import { StyleSheet, Pressable, View, Text, Platform } from 'react-native';
 import { Menu, User } from 'lucide-react-native';
 import { useThemeStore } from '@/store/theme';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface HomeHeaderProps {
 	balance: number;
@@ -10,10 +11,11 @@ interface HomeHeaderProps {
 export default function HomeHeader({ balance, onUserPress }: HomeHeaderProps) {
 	const { openMenu } = useThemeStore();
 	const { theme } = useThemeStore();
+	const insets = useSafeAreaInsets();
 
 	return (
 		<View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-			<View style={styles.topRow}>
+			<View style={[styles.topRow, { paddingTop: Math.max(insets.top, 20) }]}>
 				<Pressable onPress={openMenu} style={styles.iconButton}>
 					<Menu size={24} color='#FFFFFF' />
 				</Pressable>
@@ -46,7 +48,6 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		marginBottom: 10,
-		paddingTop: 50,
 		zIndex: 1,
 	},
 	iconButton: {

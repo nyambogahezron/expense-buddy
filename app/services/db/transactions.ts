@@ -1,13 +1,14 @@
 import { eq, and, between } from 'drizzle-orm';
 import { db } from '@/db';
-import { transactions } from '@/db/schema';
+import { transactions, categories } from '@/db/schema';
 import { Transaction, TransactionCategory } from '@/types/transaction';
+import { categoryStringToId, categoryIdToString } from './init';
 
 const toModel = (record: typeof transactions.$inferSelect): Transaction => ({
 	id: record.id.toString(),
 	amount: record.amount,
 	date: record.date.toISOString(),
-	category: record.categoryId.toString() as TransactionCategory,
+	category: categoryIdToString(record.categoryId) as TransactionCategory,
 	type: record.type,
 	description: record.description || '',
 });
@@ -35,21 +36,23 @@ export const createTransaction = async (
 ): Promise<Transaction> => {
 	const now = new Date();
 
-	await db.insert(transactions).values({
+	const insertResult = await db.insert(transactions).values({
 		amount: transaction.amount,
 		date: new Date(transaction.date),
-		categoryId: parseInt(transaction.category),
+		categoryId: categoryStringToId(transaction.category),
 		type: transaction.type,
 		description: transaction.description,
 		createdAt: now,
 		updatedAt: now,
 	});
 
+	// Get the last inserted row ID and fetch the transaction
+	const lastInsertRowId = insertResult.lastInsertRowId;
 	const result = await db
 		.select()
 		.from(transactions)
-		.orderBy(transactions.id)
-		.limit(1);
+		.where(eq(transactions.id, Number(lastInsertRowId)));
+
 	return toModel(result[0]);
 };
 
@@ -62,7 +65,7 @@ export const updateTransaction = async (
 	if (transaction.amount !== undefined) updates.amount = transaction.amount;
 	if (transaction.date !== undefined) updates.date = new Date(transaction.date);
 	if (transaction.category !== undefined)
-		updates.categoryId = parseInt(transaction.category);
+		updates.categoryId = categoryStringToId(transaction.category);
 	if (transaction.type !== undefined) updates.type = transaction.type;
 	if (transaction.description !== undefined)
 		updates.description = transaction.description;
@@ -86,7 +89,7 @@ export const getTransactionsByCategory = async (
 	const records = await db
 		.select()
 		.from(transactions)
-		.where(eq(transactions.categoryId, parseInt(category)))
+		.where(eq(transactions.categoryId, categoryStringToId(category)))
 		.orderBy(transactions.date);
 	return records.map(toModel);
 };

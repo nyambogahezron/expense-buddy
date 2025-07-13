@@ -42,7 +42,7 @@ export function useExpenseSubcategories() {
 	});
 }
 
-function useAddExpense() {
+export function useAddExpense() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (newExpense) => {

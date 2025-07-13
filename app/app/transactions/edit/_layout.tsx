@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { Platform } from 'react-native';
 
-export default function TransactionLayout() {
+export default function EditTransactionLayout() {
 	return (
 		<Stack
 			screenOptions={{
@@ -13,8 +13,6 @@ export default function TransactionLayout() {
 			}}
 		>
 			<Stack.Screen name='[id]' />
-			<Stack.Screen name='new' />
-			<Stack.Screen name='edit' />
 		</Stack>
 	);
 }

@@ -17,6 +17,7 @@ import { CATEGORIES } from '@/constants/categories';
 import { formatCurrency, formatTime } from '@/utils/helpers';
 import { router } from 'expo-router';
 import { useThemeStore } from '@/store/theme';
+import { useCategoryStore } from '@/store/categories';
 
 interface TransactionItemProps {
 	transaction: Transaction;
@@ -25,16 +26,24 @@ interface TransactionItemProps {
 
 const TransactionItem = ({ transaction, style }: TransactionItemProps) => {
 	const { theme } = useThemeStore();
+	const { categories } = useCategoryStore();
 	const scale = useSharedValue(1);
 
 	const getCategoryDetails = (categoryId: string) => {
-		return (
-			CATEGORIES.find((cat) => cat.id === categoryId) || {
-				name: categoryId,
-				icon: 'help-circle',
-				color: theme.colors.success,
-			}
-		);
+		// First try to find in default categories
+		const defaultCategory = CATEGORIES.find((cat) => cat.id === categoryId);
+		if (defaultCategory) return defaultCategory;
+
+		// Then try to find in custom categories
+		const customCategory = categories.find((cat) => cat.id === categoryId);
+		if (customCategory) return customCategory;
+
+		// Fallback
+		return {
+			name: categoryId,
+			icon: 'help-circle',
+			color: theme.colors.success,
+		};
 	};
 
 	const category = getCategoryDetails(transaction.category);
@@ -86,8 +95,6 @@ const TransactionItem = ({ transaction, style }: TransactionItemProps) => {
 								transaction.type === 'income'
 									? styles.incomeAmount
 									: styles.expenseAmount,
-
-								,
 							]}
 						>
 							{transaction.type === 'income' ? '+' : '-'}

@@ -6,19 +6,24 @@ import {
 	ActivityIndicator,
 	TouchableOpacity,
 	Platform,
+	ScrollView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
-import { Transaction } from '@/types';
-import { deleteTransaction, getTransactionById } from '@/data/transactions';
+import { Transaction } from '@/types/transaction';
+import * as transactionService from '@/services/db/transactions';
 import { CATEGORIES } from '@/constants/categories';
 import { formatCurrency, formatDate } from '@/utils/helpers';
 import { useThemeStore } from '@/store/theme';
+import { useTransactionStore } from '@/store/transactions';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TransactionsDetails() {
 	const route = useRouter();
 	const { theme } = useThemeStore();
+	const { deleteTransaction } = useTransactionStore();
+	const insets = useSafeAreaInsets();
 	const styles = useMemo(() => createStyles(theme), [theme]);
 
 	const { id } = useLocalSearchParams() as { id: string };
@@ -30,7 +35,7 @@ export default function TransactionsDetails() {
 	useEffect(() => {
 		const fetchTransaction = async () => {
 			try {
-				const data = await getTransactionById(id);
+				const data = await transactionService.getTransactionById(id);
 				if (data) {
 					setTransaction(data);
 				} else {
@@ -53,10 +58,12 @@ export default function TransactionsDetails() {
 		try {
 			setDeleting(true);
 			await deleteTransaction(transaction.id);
+			// Navigate immediately without waiting, since we use optimistic updates
 			route.push('/(tabs)/transactions');
 		} catch (err) {
 			setError('Failed to delete transaction');
 			console.error(err);
+		} finally {
 			setDeleting(false);
 		}
 	};
@@ -99,52 +106,51 @@ export default function TransactionsDetails() {
 		<View style={styles.container}>
 			<Stack.Screen
 				options={{
+					title: 'Transaction Details',
 					headerShown: true,
-					animation: 'fade',
-					header: () => (
-						<Animated.View
-							style={styles.header}
-							entering={FadeIn.duration(300)}
-						>
-							<View style={styles.headerWrapper}>
-								<TouchableOpacity
-									style={styles.backButton}
-									onPress={() => route.push('/(tabs)/transactions')}
-								>
+					headerStyle: {
+						backgroundColor: theme.colors.surface,
+					},
+					headerTintColor: theme.colors.text,
+					headerTitleStyle: {
+						fontWeight: '600',
+					},
+					headerRight: () => (
+						<View style={styles.headerActions}>
+							<TouchableOpacity
+								style={styles.editButton}
+								onPress={() =>
+									route.push(`/transactions/edit/${transaction.id}`)
+								}
+							>
+								<Feather name='edit-2' size={24} color={theme.colors.primary} />
+							</TouchableOpacity>
+							<TouchableOpacity
+								style={styles.deleteButton}
+								onPress={handleDelete}
+								disabled={deleting}
+							>
+								{deleting ? (
+									<ActivityIndicator size='small' color={theme.colors.error} />
+								) : (
 									<Feather
-										name='arrow-left'
+										name='trash-2'
 										size={24}
-										color={theme.colors.text}
+										color={theme.colors.error}
 									/>
-								</TouchableOpacity>
-								<Text style={styles.headerTitle}>Transaction Details</Text>
-								<TouchableOpacity
-									style={styles.deleteButton}
-									onPress={handleDelete}
-									disabled={deleting}
-								>
-									{deleting ? (
-										<ActivityIndicator
-											size='small'
-											color={theme.colors.error}
-										/>
-									) : (
-										<Feather
-											name='trash-2'
-											size={24}
-											color={theme.colors.error}
-										/>
-									)}
-								</TouchableOpacity>
-							</View>
-						</Animated.View>
+								)}
+							</TouchableOpacity>
+						</View>
 					),
 				}}
 			/>
-			{/* Header */}
 
 			<View style={styles.wrapper}>
-				<Animated.View style={styles.content}>
+				<ScrollView
+					style={styles.scrollView}
+					contentContainerStyle={styles.content}
+					showsVerticalScrollIndicator={false}
+				>
 					<Animated.View
 						entering={FadeInDown.duration(200).delay(200)}
 						style={[
@@ -172,19 +178,15 @@ export default function TransactionsDetails() {
 						entering={FadeInDown.duration(200).delay(300)}
 					>
 						<View style={styles.detailRow}>
-							<View style={styles.categoryIcon}>
-								<Feather
-									name={category.icon as any}
-									size={20}
-									color='#fff'
-									style={{
-										backgroundColor: category.color,
-										padding: 10,
-										borderRadius: 20,
-									}}
-								/>
+							<View
+								style={[
+									styles.categoryIcon,
+									{ backgroundColor: category.color },
+								]}
+							>
+								<Feather name={category.icon as any} size={20} color='#fff' />
 							</View>
-							<View>
+							<View style={styles.detailContent}>
 								<Text style={styles.detailLabel}>Category</Text>
 								<Text style={styles.detailValue}>{category.name}</Text>
 							</View>
@@ -193,12 +195,14 @@ export default function TransactionsDetails() {
 						<View style={styles.separator} />
 
 						<View style={styles.detailRow}>
-							<Feather
-								name='align-left'
-								size={20}
-								color={theme.colors.primary}
-							/>
-							<View>
+							<View style={styles.iconContainer}>
+								<Feather
+									name='align-left'
+									size={20}
+									color={theme.colors.primary}
+								/>
+							</View>
+							<View style={styles.detailContent}>
 								<Text style={styles.detailLabel}>Description</Text>
 								<Text style={styles.detailValue}>
 									{transaction.description}
@@ -209,25 +213,34 @@ export default function TransactionsDetails() {
 						<View style={styles.separator} />
 
 						<View style={styles.detailRow}>
-							<Feather name='calendar' size={20} color={theme.colors.primary} />
-							<View>
+							<View style={styles.iconContainer}>
+								<Feather
+									name='calendar'
+									size={20}
+									color={theme.colors.primary}
+								/>
+							</View>
+							<View style={styles.detailContent}>
 								<Text style={styles.detailLabel}>Date & Time</Text>
 								<Text style={styles.detailValue}>
 									{formatDate(transaction.date, true)}
 								</Text>
 							</View>
 						</View>
-
-						<View style={styles.separator} />
-
-						<View style={styles.detailRow}>
-							<Feather name='hash' size={20} color={theme.colors.primary} />
-							<View>
-								<Text style={styles.detailLabel}>Transaction ID</Text>
-								<Text style={styles.detailValue}>{transaction.id}</Text>
-							</View>
-						</View>
 					</Animated.View>
+				</ScrollView>
+
+				{/* Floating Edit Button */}
+				<Animated.View
+					entering={FadeIn.duration(400).delay(600)}
+					style={styles.floatingButton}
+				>
+					<TouchableOpacity
+						style={styles.editFab}
+						onPress={() => route.push(`/transactions/edit/${transaction.id}`)}
+					>
+						<Feather name='edit-2' size={24} color='#fff' />
+					</TouchableOpacity>
 				</Animated.View>
 			</View>
 		</View>
@@ -241,6 +254,7 @@ const createStyles = (theme: any) =>
 			backgroundColor: theme.colors.background,
 		},
 		wrapper: {
+			flex: 1,
 			...(Platform.OS === 'web' && {
 				maxWidth: 1200,
 				marginHorizontal: 'auto',
@@ -308,41 +322,69 @@ const createStyles = (theme: any) =>
 		deleteButton: {
 			padding: 8,
 		},
-		content: {
+		headerActions: {
+			flexDirection: 'row',
+			alignItems: 'center',
+			gap: 8,
+		},
+		editButton: {
+			padding: 8,
+		},
+		floatingButton: {
+			position: 'absolute',
+			right: 20,
+			bottom: 20,
+		},
+		editFab: {
+			width: 56,
+			height: 56,
+			borderRadius: 28,
+			backgroundColor: theme.colors.primary,
+			justifyContent: 'center',
+			alignItems: 'center',
+			elevation: 8,
+			shadowColor: '#000',
+			shadowOffset: { width: 0, height: 4 },
+			shadowOpacity: 0.3,
+			shadowRadius: 8,
+		},
+		scrollView: {
 			flex: 1,
+		},
+		content: {
 			paddingHorizontal: 16,
 			paddingTop: 20,
+			paddingBottom: 20,
 		},
 		amountContainer: {
 			borderRadius: 12,
-			padding: 20,
+			padding: 24,
 			alignItems: 'center',
 			marginBottom: 20,
+			minHeight: 90,
 		},
 		amountLabel: {
-			color: 'rgba(255, 255, 255, 0.8)',
-			fontSize: 14,
-			marginBottom: 5,
+			color: 'rgba(255, 255, 255, 0.9)',
+			fontSize: 16,
+			marginBottom: 8,
+			fontWeight: '500',
 		},
 		amount: {
 			color: 'white',
-			fontSize: 32,
+			fontSize: 36,
 			fontWeight: 'bold',
-			marginBottom: 5,
+			marginBottom: 8,
+			textAlign: 'center',
 		},
 		date: {
-			color: 'rgba(255, 255, 255, 0.8)',
-			fontSize: 14,
+			color: 'rgba(255, 255, 255, 0.9)',
+			fontSize: 16,
 		},
 		detailsCard: {
 			backgroundColor: theme.colors.surface,
 			borderRadius: 12,
+			marginVertical: 8,
 			padding: 20,
-			shadowColor: '#000',
-			shadowOffset: { width: 0, height: 1 },
-			shadowOpacity: 0.05,
-			shadowRadius: 0.5,
-			elevation: 0.5,
 		},
 		detailRow: {
 			flexDirection: 'row',
@@ -350,22 +392,43 @@ const createStyles = (theme: any) =>
 			paddingVertical: 12,
 		},
 		categoryIcon: {
-			marginRight: 15,
+			width: 40,
+			height: 40,
+			borderRadius: 20,
+			justifyContent: 'center',
+			alignItems: 'center',
+			marginRight: 16,
+		},
+		iconContainer: {
+			width: 40,
+			height: 40,
+			borderRadius: 20,
+			backgroundColor: theme.colors.primary + '15',
+			justifyContent: 'center',
+			alignItems: 'center',
+			marginRight: 16,
+		},
+		detailContent: {
+			flex: 1,
 		},
 		detailLabel: {
 			fontSize: 14,
 			color: theme.colors.textSecondary,
 			marginBottom: 4,
-			marginLeft: 15,
+			fontWeight: '500',
 		},
 		detailValue: {
 			fontSize: 16,
 			color: theme.colors.text,
-			marginLeft: 15,
+			fontWeight: '600',
+			// Ensure text is always visible
+			...(theme.id === 'light' && { color: '#1F2937' }),
+			...(theme.id === 'dark' && { color: '#F9FAFB' }),
 		},
 		separator: {
 			height: 1,
 			backgroundColor: theme.colors.border,
-			marginVertical: 4,
+			marginVertical: 8,
+			marginLeft: 56, // Align with content after icon
 		},
 	});

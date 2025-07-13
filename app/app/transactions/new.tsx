@@ -20,9 +20,10 @@ export default function NewTransactionScreen() {
 	const { addTransaction } = useTransactionStore();
 	const [error, setError] = useState<string | null>(null);
 
-	const handleSubmit = (values: any) => {
+	const handleSubmit = async (values: any) => {
 		try {
-			addTransaction(values);
+			setError(null);
+			await addTransaction(values);
 			router.back();
 		} catch (err) {
 			setError('Failed to create transaction. Please try again.');

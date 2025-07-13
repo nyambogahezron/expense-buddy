@@ -1,11 +1,4 @@
-export interface Transaction {
-	id: string;
-	amount: number;
-	date: string;
-	category: string;
-	type: 'income' | 'expense';
-	description: string;
-}
+export * from './transaction';
 
 export interface Category {
 	id: number;

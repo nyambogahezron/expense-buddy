@@ -7,7 +7,7 @@ import Animated, {
 	useAnimatedStyle,
 	withSpring,
 } from 'react-native-reanimated';
-import { Transaction } from '@/types';
+import { Transaction } from '@/types/transaction';
 import { formatDate } from '@/utils/helpers';
 import Swipeable, {
 	SwipeableMethods,
@@ -42,7 +42,6 @@ export default function TransactionList({
 		};
 	});
 
-	// Group transactions by date
 	const groupedTransactions = React.useMemo(() => {
 		const groups: { [key: string]: Transaction[] } = {};
 
@@ -57,7 +56,6 @@ export default function TransactionList({
 			groups[dateStr].push(transaction);
 		});
 
-		// Convert to section list data format
 		return Object.keys(groups)
 			.map((date) => ({
 				title: date,
@@ -84,12 +82,8 @@ export default function TransactionList({
 
 	const handleDelete = useCallback(
 		(id: string) => {
-			// Close the swipeable
 			swipeableRefs.current[id]?.close();
-			// Delete the transaction with animation
-			setTimeout(() => {
-				deleteTransaction(id);
-			}, 300);
+			deleteTransaction(id);
 		},
 		[deleteTransaction]
 	);
@@ -140,7 +134,7 @@ export default function TransactionList({
 			<SectionList
 				scrollEnabled={false}
 				sections={groupedTransactions}
-				keyExtractor={(item) => item.id}
+				keyExtractor={(item, index) => `${item.id}-${index}`}
 				renderItem={renderItem}
 				renderSectionHeader={renderSectionHeader}
 				stickySectionHeadersEnabled={false}
@@ -156,10 +150,9 @@ export default function TransactionList({
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
-		marginTop: -100,
 	},
 	listContent: {
-		paddingHorizontal: 16,
+		paddingHorizontal: 5,
 		paddingBottom: 20,
 	},
 	sectionHeader: {

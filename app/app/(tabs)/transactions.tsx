@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
 	Pressable,
 	StyleSheet,
@@ -23,37 +23,77 @@ import { CategoryFilter } from '@/components/CategoryFilter';
 import { TransactionCategory } from '@/types/transaction';
 import { RefreshControl } from 'react-native';
 import { useThemeStore } from '@/store/theme';
-import { useTransactions } from '@/hooks/useTransactions';
 import EmptyState from '@/components/EmptyState';
 import TransactionList from '@/components/transaction/TransactionList';
-import LoadingState from '@/components/LoadingState';
 import ErrorState from '@/components/ErrorState';
 import { Plus, Filter, ArrowDownUp } from 'lucide-react-native';
 import { router, Stack } from 'expo-router';
 import { useTransactionStore } from '@/store/transactions';
 import HomeHeader from '@/components/HomeHeader';
 import { TransactionSkeleton } from '@/components/TransactionItem';
-const { width, height } = Dimensions.get('window');
-
-const HEADER_HEIGHT = height * 0.4;
-const CATEGORY_FILTER_HEIGHT = 60; // Approximate height of the category filter
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+const { width } = Dimensions.get('window');
 
 export default function TransactionsScreen() {
-	const { sortOrder, setSortOrder } = useTransactionStore();
+	const {
+		transactions,
+		isLoading: loading,
+		error,
+		sortOrder,
+		setSortOrder,
+		loadTransactions,
+	} = useTransactionStore();
 	const [selectedCategory, setSelectedCategory] =
 		useState<TransactionCategory | null>(null);
 
 	const { theme } = useThemeStore();
 	const [showFabMenu, setShowFabMenu] = useState(false);
+	const [refreshing, setRefreshing] = useState(false);
+	const insets = useSafeAreaInsets();
 
-	const {
-		transactions,
-		loading,
-		error,
-		refreshing,
-		onRefresh,
-		getTransactionSummary,
-	} = useTransactions();
+	const HEADER_HEIGHT = 100;
+	const CATEGORY_FILTER_HEIGHT = 60;
+
+	useEffect(() => {
+		loadTransactions();
+	}, [loadTransactions]);
+
+	const onRefresh = useCallback(async () => {
+		setRefreshing(true);
+		await loadTransactions();
+		setRefreshing(false);
+	}, [loadTransactions]);
+
+	const getTransactionSummary = useCallback(() => {
+		const summary = {
+			totalIncome: 0,
+			totalExpense: 0,
+			balance: 0,
+			categorySummary: {} as Record<string, number>,
+		};
+
+		transactions.forEach((transaction) => {
+			if (transaction.type === 'income') {
+				summary.totalIncome += transaction.amount;
+			} else {
+				summary.totalExpense += transaction.amount;
+			}
+
+			// Update category summary
+			if (!summary.categorySummary[transaction.category]) {
+				summary.categorySummary[transaction.category] = 0;
+			}
+
+			if (transaction.type === 'income') {
+				summary.categorySummary[transaction.category] += transaction.amount;
+			} else {
+				summary.categorySummary[transaction.category] -= transaction.amount;
+			}
+		});
+
+		summary.balance = summary.totalIncome - summary.totalExpense;
+		return summary;
+	}, [transactions]);
 
 	const scrollOffset = useSharedValue(0);
 	const scrollRef = useAnimatedRef<Animated.ScrollView>();
@@ -86,7 +126,6 @@ export default function TransactionsScreen() {
 				[0, HEADER_HEIGHT / 1.5],
 				[0, 1]
 			),
-			// Only show the background when the fixed category filter is visible
 			height: interpolate(
 				scrollOffset.value,
 				[
@@ -99,7 +138,6 @@ export default function TransactionsScreen() {
 		};
 	}, []);
 
-	// New animated style for the fixed category filter
 	const fixedCategoryFilterStyle = useAnimatedStyle(() => {
 		const showFixedFilter = interpolate(
 			scrollOffset.value,
@@ -133,12 +171,8 @@ export default function TransactionsScreen() {
 		scrollOffset.value = event.contentOffset.y;
 	});
 
-	const [isRefreshing, setIsRefreshing] = useState(false);
-
 	const handleRefresh = useCallback(async () => {
-		setIsRefreshing(true);
 		await onRefresh();
-		setIsRefreshing(false);
 	}, [onRefresh]);
 
 	const filteredTransactions = selectedCategory
@@ -166,7 +200,7 @@ export default function TransactionsScreen() {
 		setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
 	};
 
-	if (loading && !isRefreshing) {
+	if (loading && !refreshing) {
 		return (
 			<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
 				{Array.from({ length: 10 }).map((_, index) => (
@@ -177,7 +211,7 @@ export default function TransactionsScreen() {
 	}
 
 	if (error) {
-		return <ErrorState message={error} onRetry={onRefresh} />;
+		return <ErrorState message={error} onRetry={loadTransactions} />;
 	}
 
 	return (
@@ -185,7 +219,6 @@ export default function TransactionsScreen() {
 			style={{
 				flex: 1,
 				backgroundColor: theme.colors.background,
-				marginTop: -80,
 			}}
 		>
 			<Stack.Screen
@@ -211,7 +244,6 @@ export default function TransactionsScreen() {
 								{
 									width: '100%',
 									zIndex: 999,
-									marginTop: Platform.select({ web: 0, native: 35 }),
 									backgroundColor: theme.colors.background,
 									...(Platform.OS === 'web' && {
 										maxWidth: 1200,
@@ -235,13 +267,13 @@ export default function TransactionsScreen() {
 
 			<Animated.ScrollView
 				style={{
-					marginTop: Platform.select({ web: -10, android: -20 }),
 					position: 'relative',
 				}}
 				ref={scrollRef}
 				onScroll={scrollHandler}
 				scrollEventThrottle={16}
 				contentContainerStyle={{
+					paddingTop: 0,
 					paddingBottom: 20,
 					...(Platform.OS === 'web' && {
 						maxWidth: 1200,
@@ -275,88 +307,96 @@ export default function TransactionsScreen() {
 					<TransactionList
 						transactions={filteredTransactions}
 						onTransactionPress={(id) => {
-							// Handle transaction press
+							router.push(`/transactions/${id}`);
 						}}
 					/>
 				)}
-				{/* Floating Action Button */}
-				<View style={styles.fabContainer}>
-					{showFabMenu && (
-						<Animated.View
-							entering={FadeIn.duration(200)}
-							exiting={FadeOut.duration(200)}
-							style={styles.backdrop}
-						>
-							<Pressable
-								style={{ flex: 1 }}
-								onPress={() => setShowFabMenu(false)}
-							/>
-						</Animated.View>
-					)}
+			</Animated.ScrollView>
 
-					{showFabMenu && (
-						<Animated.View
-							entering={SlideInDown.springify().damping(15)}
-							exiting={SlideOutDown.duration(200)}
-							style={styles.fabMenuContainer}
-						>
-							<Pressable
-								onPress={handleCreateTransaction}
-								style={[
-									styles.fabMenuItem,
-									{ backgroundColor: theme.colors.primary },
-								]}
-							>
-								<Plus size={20} color='#FFFFFF' />
-								<Text style={styles.fabMenuItemText}>New Transaction</Text>
-							</Pressable>
+			<View
+				style={[
+					styles.fabContainer,
+					{ bottom: Math.max(insets.bottom + 20, 20) },
+				]}
+			>
+				{showFabMenu && (
+					<Animated.View
+						entering={FadeIn.duration(200)}
+						exiting={FadeOut.duration(200)}
+						style={styles.backdrop}
+					>
+						<Pressable
+							style={{ flex: 1 }}
+							onPress={() => setShowFabMenu(false)}
+						/>
+					</Animated.View>
+				)}
 
-							<Pressable
-								onPress={handleShowFilters}
-								style={[
-									styles.fabMenuItem,
-									{ backgroundColor: theme.colors.surface },
-								]}
-							>
-								<Filter size={20} color={theme.colors.text} />
-								<Text
-									style={[styles.fabMenuItemText, { color: theme.colors.text }]}
-								>
-									Filter
-								</Text>
-							</Pressable>
-
-							<Pressable
-								onPress={handleSort}
-								style={[
-									styles.fabMenuItem,
-									{ backgroundColor: theme.colors.surface },
-								]}
-							>
-								<ArrowDownUp size={20} color={theme.colors.text} />
-								<Text
-									style={[styles.fabMenuItemText, { color: theme.colors.text }]}
-								>
-									Sort {sortOrder === 'desc' ? 'Oldest First' : 'Newest First'}
-								</Text>
-							</Pressable>
-						</Animated.View>
-					)}
-
-					<Pressable
-						onPress={toggleFabMenu}
+				{showFabMenu && (
+					<Animated.View
+						entering={SlideInDown.springify().damping(15)}
+						exiting={SlideOutDown.duration(200)}
 						style={[
-							styles.fab,
-							{
-								backgroundColor: theme.colors.primary,
-								transform: [{ rotate: showFabMenu ? '45deg' : '0deg' }],
-							},
+							styles.fabMenuContainer,
+							{ bottom: 80 + Math.max(insets.bottom, 0) },
 						]}
 					>
-						<Plus size={28} color='#FFFFFF' />
-					</Pressable>
-				</View>
-			</Animated.ScrollView>
+						<Pressable
+							onPress={handleCreateTransaction}
+							style={[
+								styles.fabMenuItem,
+								{ backgroundColor: theme.colors.primary },
+							]}
+						>
+							<Plus size={20} color='#FFFFFF' />
+							<Text style={styles.fabMenuItemText}>New Transaction</Text>
+						</Pressable>
+
+						<Pressable
+							onPress={handleShowFilters}
+							style={[
+								styles.fabMenuItem,
+								{ backgroundColor: theme.colors.surface },
+							]}
+						>
+							<Filter size={20} color={theme.colors.text} />
+							<Text
+								style={[styles.fabMenuItemText, { color: theme.colors.text }]}
+							>
+								Filter
+							</Text>
+						</Pressable>
+
+						<Pressable
+							onPress={handleSort}
+							style={[
+								styles.fabMenuItem,
+								{ backgroundColor: theme.colors.surface },
+							]}
+						>
+							<ArrowDownUp size={20} color={theme.colors.text} />
+							<Text
+								style={[styles.fabMenuItemText, { color: theme.colors.text }]}
+							>
+								Sort {sortOrder === 'desc' ? 'Oldest First' : 'Newest First'}
+							</Text>
+						</Pressable>
+					</Animated.View>
+				)}
+
+				<Pressable
+					onPress={toggleFabMenu}
+					style={[
+						styles.fab,
+						{
+							backgroundColor: theme.colors.primary,
+							transform: [{ rotate: showFabMenu ? '45deg' : '0deg' }],
+						},
+					]}
+				>
+					<Plus size={28} color='#FFFFFF' />
+				</Pressable>
+			</View>
 		</View>
 	);
 }
@@ -402,9 +442,9 @@ const styles = StyleSheet.create({
 	},
 	fabContainer: {
 		position: 'absolute',
-		bottom: 20,
 		right: 20,
 		alignItems: 'center',
+		zIndex: 1000,
 	},
 	fab: {
 		width: 50,
@@ -420,7 +460,6 @@ const styles = StyleSheet.create({
 	},
 	fabMenuContainer: {
 		position: 'absolute',
-		bottom: 80,
 		right: 0,
 		marginBottom: 8,
 		borderRadius: 12,
