@@ -33,6 +33,7 @@ export default function RootLayout() {
 	const { isLocked, showOverlay, unlock, showAppOverlay, hideAppOverlay } =
 		useAppLock();
 	const [appState, setAppState] = useState(AppState.currentState);
+	const [isInitialized, setIsInitialized] = useState(false);
 
 	const [fontsLoaded] = useFonts({
 		'Inter-Regular': Inter_400Regular,
@@ -60,10 +61,12 @@ export default function RootLayout() {
 
 	useEffect(() => {
 		// Initialize categories after successful migration
-		if (success) {
-			initializeCategories();
+		if (success && !isInitialized) {
+			initializeCategories().finally(() => {
+				setIsInitialized(true);
+			});
 		}
-	}, [success]);
+	}, [success, isInitialized]);
 
 	if (error) {
 		console.error('Migration error:', error);
@@ -101,18 +104,11 @@ export default function RootLayout() {
 						/>
 						<Stack.Screen
 							name='settings'
-							options={{ headerShown: true, animation: 'slide_from_right' }}
+							options={{ headerShown: false, animation: 'slide_from_right' }}
 						/>
 						<Stack.Screen
 							name='profile'
 							options={{ headerShown: true, animation: 'slide_from_right' }}
-						/>
-						<Stack.Screen
-							name='settings/authentication'
-							options={{
-								title: 'Authentication',
-								headerShown: true,
-							}}
 						/>
 
 						<Stack.Screen name='+not-found' />

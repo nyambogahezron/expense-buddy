@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
 	View,
 	Text,
@@ -6,47 +6,104 @@ import {
 	ScrollView,
 	TextInput,
 	Pressable,
+	Alert,
 } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useThemeStore } from '@/store/theme';
 import { useBudgetStore } from '@/store/budgets';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, Calendar, DollarSign } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import ContentWrapper from '@/components/ui/ContentWrapper';
+import { useBudgetValidation } from '@/hooks/useBudgets';
+import { calculateEndDate, validateBudget } from '@/utils/budgetHelpers';
 
 export default function NewBudgetScreen() {
 	const { theme } = useThemeStore();
-	const { addBudget } = useBudgetStore();
+	const { addBudget, isLoading } = useBudgetStore();
+	const {
+		validationErrors,
+		isValidating,
+		validateBudgetName,
+		validateAmount,
+		validateDates,
+		clearAllErrors,
+	} = useBudgetValidation();
+
 	const [name, setName] = useState('');
 	const [totalAmount, setTotalAmount] = useState('');
-	const [period, setPeriod] = useState<'weekly' | 'monthly' | 'yearly'>(
-		'monthly'
-	);
+	const [period, setPeriod] = useState<
+		'daily' | 'weekly' | 'monthly' | 'yearly'
+	>('monthly');
 	const [startDate, setStartDate] = useState(new Date());
-	const [endDate, setEndDate] = useState(new Date());
+	const [endDate, setEndDate] = useState(() =>
+		calculateEndDate(new Date(), 'monthly')
+	);
 	const [showStartDate, setShowStartDate] = useState(false);
 	const [showEndDate, setShowEndDate] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
-	const handleSubmit = () => {
-		if (!name || !totalAmount) {
-			setError('Please fill in all required fields');
-			return;
+	// Auto-calculate end date when period or start date changes
+	useEffect(() => {
+		const newEndDate = calculateEndDate(startDate, period);
+		setEndDate(newEndDate);
+	}, [startDate, period]);
+
+	const handleNameChange = async (text: string) => {
+		setName(text);
+		if (text.trim()) {
+			await validateBudgetName(text);
 		}
+	};
+
+	const handleAmountChange = (text: string) => {
+		setTotalAmount(text);
+		if (text.trim()) {
+			validateAmount(text, 'totalAmount');
+		}
+	};
+
+	const handleSubmit = async () => {
+		clearAllErrors();
+		setIsSubmitting(true);
 
 		try {
-			addBudget({
-				name,
+			// Validate all fields
+			const isNameValid = await validateBudgetName(name);
+			const isAmountValid = validateAmount(totalAmount, 'totalAmount');
+			const isDatesValid = validateDates(startDate, endDate);
+
+			if (!isNameValid || !isAmountValid || !isDatesValid) {
+				setIsSubmitting(false);
+				return;
+			}
+
+			const budgetData = {
+				name: name.trim(),
 				totalAmount: parseFloat(totalAmount),
 				period,
 				startDate: startDate.toISOString(),
 				endDate: endDate.toISOString(),
 				categories: [],
-			});
-			router.back();
+			};
+
+			const validation = validateBudget(budgetData);
+			if (!validation.isValid) {
+				Alert.alert('Validation Error', validation.errors.join('\n'));
+				setIsSubmitting(false);
+				return;
+			}
+
+			await addBudget(budgetData);
+
+			Alert.alert('Success', 'Budget created successfully!', [
+				{ text: 'OK', onPress: () => router.back() },
+			]);
 		} catch (err) {
-			setError('Failed to create budget. Please try again.');
+			console.error('Error creating budget:', err);
+			Alert.alert('Error', 'Failed to create budget. Please try again.');
+		} finally {
+			setIsSubmitting(false);
 		}
 	};
 
@@ -85,20 +142,32 @@ export default function NewBudgetScreen() {
 			<ScrollView style={styles.content}>
 				<ContentWrapper>
 					<Animated.View entering={FadeIn}>
-						{error && (
-							<Text style={[styles.error, { color: theme.colors.error }]}>
-								{error}
-							</Text>
+						{Object.keys(validationErrors).length > 0 && (
+							<View
+								style={[
+									styles.errorContainer,
+									{ backgroundColor: theme.colors.error + '20' },
+								]}
+							>
+								{Object.entries(validationErrors).map(([field, message]) => (
+									<Text
+										key={field}
+										style={[styles.error, { color: theme.colors.error }]}
+									>
+										{message}
+									</Text>
+								))}
+							</View>
 						)}
 
 						<View style={styles.form}>
 							<View style={styles.inputGroup}>
 								<Text style={[styles.label, { color: theme.colors.text }]}>
-									Budget Name
+									Budget Name *
 								</Text>
 								<TextInput
 									value={name}
-									onChangeText={setName}
+									onChangeText={handleNameChange}
 									placeholder='Enter budget name'
 									style={[
 										styles.input,
@@ -114,23 +183,33 @@ export default function NewBudgetScreen() {
 
 							<View style={styles.inputGroup}>
 								<Text style={[styles.label, { color: theme.colors.text }]}>
-									Total Amount
+									Total Amount *
 								</Text>
-								<TextInput
-									value={totalAmount}
-									onChangeText={setTotalAmount}
-									placeholder='Enter amount'
-									keyboardType='decimal-pad'
-									style={[
-										styles.input,
-										{
-											backgroundColor: theme.colors.surface,
-											borderColor: theme.colors.border,
-											color: theme.colors.text,
-										},
-									]}
-									placeholderTextColor={theme.colors.textSecondary}
-								/>
+								<View style={styles.inputWithIcon}>
+									<DollarSign
+										size={20}
+										color={theme.colors.textSecondary}
+										style={styles.inputIcon}
+									/>
+									<TextInput
+										value={totalAmount}
+										onChangeText={handleAmountChange}
+										placeholder='Enter amount'
+										keyboardType='decimal-pad'
+										style={[
+											styles.input,
+											styles.inputWithPadding,
+											{
+												backgroundColor: theme.colors.surface,
+												borderColor: validationErrors.totalAmount
+													? theme.colors.error
+													: theme.colors.border,
+												color: theme.colors.text,
+											},
+										]}
+										placeholderTextColor={theme.colors.textSecondary}
+									/>
+								</View>
 							</View>
 
 							<View style={styles.inputGroup}>
@@ -138,33 +217,36 @@ export default function NewBudgetScreen() {
 									Period
 								</Text>
 								<View style={styles.periodButtons}>
-									{(['weekly', 'monthly', 'yearly'] as const).map((p) => (
-										<Pressable
-											key={p}
-											onPress={() => setPeriod(p)}
-											style={[
-												styles.periodButton,
-												{
-													backgroundColor:
-														period === p
-															? theme.colors.primary
-															: theme.colors.surface,
-													borderColor: theme.colors.border,
-												},
-											]}
-										>
-											<Text
+									{(['daily', 'weekly', 'monthly', 'yearly'] as const).map(
+										(p) => (
+											<Pressable
+												key={p}
+												onPress={() => setPeriod(p)}
 												style={[
-													styles.periodButtonText,
+													styles.periodButton,
 													{
-														color: period === p ? '#FFFFFF' : theme.colors.text,
+														backgroundColor:
+															period === p
+																? theme.colors.primary
+																: theme.colors.surface,
+														borderColor: theme.colors.border,
 													},
 												]}
 											>
-												{p.charAt(0).toUpperCase() + p.slice(1)}
-											</Text>
-										</Pressable>
-									))}
+												<Text
+													style={[
+														styles.periodButtonText,
+														{
+															color:
+																period === p ? '#FFFFFF' : theme.colors.text,
+														},
+													]}
+												>
+													{p.charAt(0).toUpperCase() + p.slice(1)}
+												</Text>
+											</Pressable>
+										)
+									)}
 								</View>
 							</View>
 
@@ -255,6 +337,7 @@ export default function NewBudgetScreen() {
 											borderColor: theme.colors.border,
 										},
 									]}
+									disabled={isSubmitting}
 								>
 									<Text
 										style={[styles.buttonText, { color: theme.colors.text }]}
@@ -266,11 +349,16 @@ export default function NewBudgetScreen() {
 									onPress={handleSubmit}
 									style={[
 										styles.button,
-										{ backgroundColor: theme.colors.primary },
+										{
+											backgroundColor: isSubmitting
+												? theme.colors.textSecondary
+												: theme.colors.primary,
+										},
 									]}
+									disabled={isSubmitting || isValidating}
 								>
 									<Text style={[styles.buttonText, { color: '#FFFFFF' }]}>
-										Create Budget
+										{isSubmitting ? 'Creating...' : 'Create Budget'}
 									</Text>
 								</Pressable>
 							</View>
@@ -303,11 +391,18 @@ const styles = StyleSheet.create({
 	content: {
 		flex: 1,
 	},
+	errorContainer: {
+		backgroundColor: 'rgba(239, 68, 68, 0.1)',
+		borderRadius: 12,
+		padding: 16,
+		marginBottom: 16,
+		borderWidth: 1,
+		borderColor: 'rgba(239, 68, 68, 0.2)',
+	},
 	error: {
 		fontSize: 14,
 		fontFamily: 'Inter-Regular',
-		marginHorizontal: 20,
-		marginBottom: 16,
+		marginBottom: 4,
 	},
 	form: {
 		padding: 20,
@@ -327,6 +422,19 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 16,
 		fontSize: 16,
 		fontFamily: 'Inter-Regular',
+	},
+	inputWithIcon: {
+		position: 'relative',
+		flexDirection: 'row',
+		alignItems: 'center',
+	},
+	inputIcon: {
+		position: 'absolute',
+		left: 16,
+		zIndex: 1,
+	},
+	inputWithPadding: {
+		paddingLeft: 48,
 	},
 	periodButtons: {
 		flexDirection: 'row',

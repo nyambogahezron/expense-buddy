@@ -38,18 +38,27 @@ export const initializeCategories = async (): Promise<void> => {
 
 		if (existingCategories.length === 0) {
 			// Insert all categories with specific IDs
-			for (const category of CATEGORIES) {
+			const categoryInserts = CATEGORIES.map((category) => {
 				const id = CATEGORY_ID_MAP[category.id];
-				await db.insert(categories).values({
+				return {
 					id,
 					name: category.name,
 					icon: category.icon,
 					color: category.color,
 					description: category.name,
-				});
-			}
+				};
+			});
+
+			// Use a single transaction for all inserts
+			await db.transaction(async (tx) => {
+				for (const categoryData of categoryInserts) {
+					await tx.insert(categories).values(categoryData);
+				}
+			});
 
 			console.log('Categories initialized successfully');
+		} else {
+			console.log('Categories already exist, skipping initialization');
 		}
 	} catch (error) {
 		console.error('Error initializing categories:', error);

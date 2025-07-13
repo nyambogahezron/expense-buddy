@@ -5,22 +5,242 @@ import {
 	Pressable,
 	ScrollView,
 	Platform,
+	RefreshControl,
 } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useThemeStore } from '@/store/theme';
 import { useBudgetStore } from '@/store/budgets';
-import { Plus } from 'lucide-react-native';
+import { Plus, TrendingUp, AlertTriangle } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
+import { useBudgetOverview } from '@/hooks/useBudgets';
+import { formatCurrency, getBudgetStatus } from '@/utils/budgetHelpers';
+import React, { useMemo, useCallback, useEffect, useState } from 'react';
+import * as budgetDb from '@/services/db/budgets';
+import { Budget, BudgetCategory } from '@/types/budget';
 
 export default function BudgetsScreen() {
 	const { theme } = useThemeStore();
-	const { budgets, selectBudget } = useBudgetStore();
+	const { selectBudget } = useBudgetStore();
+	const [allBudgets, setAllBudgets] = useState<Budget[]>([]);
+	const [isLoading, setIsLoading] = useState(true);
+	const [refreshing, setRefreshing] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
-	const handleBudgetPress = (budget: any) => {
-		selectBudget(budget);
-		router.push('/budgets/[id]');
+	const overview = useBudgetOverview(allBudgets);
+
+	// Load all budgets on component mount
+	useEffect(() => {
+		loadBudgets();
+	}, []);
+
+	const loadBudgets = async () => {
+		try {
+			setError(null);
+			const budgets = await budgetDb.getAllBudgets();
+			setAllBudgets(budgets);
+		} catch (err) {
+			console.error('Error loading budgets:', err);
+			setError(err instanceof Error ? err.message : 'Failed to load budgets');
+		} finally {
+			setIsLoading(false);
+		}
 	};
+
+	const refresh = async () => {
+		if (refreshing) return; // Prevent multiple refreshes
+
+		setRefreshing(true);
+		try {
+			await loadBudgets();
+		} catch (err) {
+			console.error('Error during refresh:', err);
+		} finally {
+			setRefreshing(false);
+		}
+	};
+
+	const handleBudgetPress = useCallback(
+		(budget: Budget) => {
+			selectBudget(budget);
+			router.push(`/budgets/${budget.id}`);
+		},
+		[selectBudget]
+	);
+
+	const handleAddBudget = useCallback(() => {
+		router.push('/budgets/new');
+	}, []);
+
+	const budgetCards = useMemo(() => {
+		if (!allBudgets || allBudgets.length === 0) {
+			return [];
+		}
+
+		return allBudgets.map((budget: Budget, index: number) => {
+			const totalSpent =
+				budget.categories?.reduce(
+					(sum: number, cat: BudgetCategory) => sum + (cat.spent || 0),
+					0
+				) || 0;
+			const progress =
+				budget.totalAmount > 0 ? (totalSpent / budget.totalAmount) * 100 : 0;
+			const status = getBudgetStatus(budget);
+
+			return (
+				<Animated.View
+					key={budget.id}
+					entering={FadeInUp.delay(index * 100)}
+					style={[
+						styles.budgetCard,
+						{
+							backgroundColor: theme.colors.surface,
+							borderColor: theme.colors.border,
+						},
+					]}
+				>
+					<Pressable
+						onPress={() => handleBudgetPress(budget)}
+						style={styles.budgetContent}
+					>
+						<View style={styles.budgetHeader}>
+							<View style={styles.budgetTitleRow}>
+								<Text style={[styles.budgetName, { color: theme.colors.text }]}>
+									{budget.name}
+								</Text>
+								{status.status !== 'on-track' &&
+									(status.status === 'over-budget' ? (
+										<AlertTriangle size={20} color={theme.colors.error} />
+									) : (
+										<TrendingUp size={20} color='#F59E0B' />
+									))}
+							</View>
+							<Text
+								style={[styles.budgetAmount, { color: theme.colors.primary }]}
+							>
+								${budget.totalAmount.toLocaleString()}
+							</Text>
+						</View>
+
+						<View style={styles.progressContainer}>
+							<View
+								style={[
+									styles.progressBar,
+									{ backgroundColor: theme.colors.border },
+								]}
+							>
+								<View
+									style={[
+										styles.progressFill,
+										{
+											width: `${Math.min(progress, 100)}%`,
+											backgroundColor:
+												progress > 90
+													? theme.colors.error
+													: theme.colors.primary,
+										},
+									]}
+								/>
+							</View>
+							<Text
+								style={[
+									styles.progressText,
+									{ color: theme.colors.textSecondary },
+								]}
+							>
+								${totalSpent.toLocaleString()} spent
+							</Text>
+						</View>
+
+						<View style={styles.categoriesGrid}>
+							{budget.categories?.map((category: BudgetCategory) => (
+								<View
+									key={category.id}
+									style={[
+										styles.categoryChip,
+										{ backgroundColor: category.color + '20' },
+									]}
+								>
+									<Text
+										style={[styles.categoryName, { color: category.color }]}
+									>
+										{category.name}
+									</Text>
+									<Text
+										style={[styles.categoryAmount, { color: category.color }]}
+									>
+										${(category.amount || 0).toLocaleString()}
+									</Text>
+								</View>
+							)) || []}
+						</View>
+					</Pressable>
+				</Animated.View>
+			);
+		});
+	}, [allBudgets, theme, handleBudgetPress]);
+
+	if (isLoading && allBudgets.length === 0) {
+		return (
+			<View
+				style={[styles.container, { backgroundColor: theme.colors.background }]}
+			>
+				<StatusBar
+					style={theme.name.toLocaleLowerCase() === 'light' ? 'dark' : 'light'}
+				/>
+				<View
+					style={[
+						styles.container,
+						{ justifyContent: 'center', alignItems: 'center' },
+					]}
+				>
+					<Text style={{ color: theme.colors.text }}>Loading budgets...</Text>
+				</View>
+			</View>
+		);
+	}
+
+	if (error) {
+		return (
+			<View
+				style={[styles.container, { backgroundColor: theme.colors.background }]}
+			>
+				<StatusBar
+					style={theme.name.toLocaleLowerCase() === 'light' ? 'dark' : 'light'}
+				/>
+				<View
+					style={[
+						styles.container,
+						{ justifyContent: 'center', alignItems: 'center' },
+					]}
+				>
+					<Text
+						style={{
+							color: theme.colors.error,
+							textAlign: 'center',
+							paddingHorizontal: 20,
+						}}
+					>
+						Error loading budgets: {error}
+					</Text>
+					<Pressable
+						onPress={refresh}
+						style={[
+							styles.addButton,
+							{
+								backgroundColor: theme.colors.primary,
+								marginTop: 20,
+								paddingHorizontal: 20,
+								paddingVertical: 10,
+							},
+						]}
+					>
+						<Text style={{ color: theme.colors.background }}>Retry</Text>
+					</Pressable>
+				</View>
+			</View>
+		);
+	}
 
 	return (
 		<View
@@ -45,7 +265,7 @@ export default function BudgetsScreen() {
 									Budgets
 								</Text>
 								<Pressable
-									onPress={() => router.push('/budgets/new')}
+									onPress={handleAddBudget}
 									style={[
 										styles.addButton,
 										{ backgroundColor: theme.colors.background },
@@ -59,109 +279,145 @@ export default function BudgetsScreen() {
 				}}
 			/>
 
-			<ScrollView style={styles.content}>
-				{budgets.map((budget, index) => {
-					const totalSpent = budget.categories.reduce(
-						(sum, cat) => sum + cat.spent,
-						0
-					);
-					const progress = (totalSpent / budget.totalAmount) * 100;
-
-					return (
-						<Animated.View
-							key={budget.id}
-							entering={FadeInUp.delay(index * 100)}
+			<ScrollView
+				style={styles.content}
+				refreshControl={
+					<RefreshControl
+						refreshing={refreshing}
+						onRefresh={refresh}
+						tintColor={theme.colors.primary}
+					/>
+				}
+			>
+				{/* Empty state */}
+				{!isLoading && (!allBudgets || allBudgets.length === 0) && (
+					<View
+						style={{
+							flex: 1,
+							justifyContent: 'center',
+							alignItems: 'center',
+							paddingVertical: 60,
+						}}
+					>
+						<Text
+							style={{
+								color: theme.colors.textSecondary,
+								fontSize: 18,
+								textAlign: 'center',
+							}}
+						>
+							No budgets found
+						</Text>
+						<Text
+							style={{
+								color: theme.colors.textSecondary,
+								fontSize: 14,
+								textAlign: 'center',
+								marginTop: 8,
+							}}
+						>
+							Create your first budget to get started
+						</Text>
+						<Pressable
+							onPress={handleAddBudget}
 							style={[
-								styles.budgetCard,
+								styles.addButton,
 								{
-									backgroundColor: theme.colors.surface,
-									borderColor: theme.colors.border,
+									backgroundColor: theme.colors.primary,
+									marginTop: 20,
+									paddingHorizontal: 20,
+									paddingVertical: 10,
 								},
 							]}
 						>
-							<Pressable
-								onPress={() => handleBudgetPress(budget)}
-								style={styles.budgetContent}
-							>
-								<View style={styles.budgetHeader}>
-									<Text
-										style={[styles.budgetName, { color: theme.colors.text }]}
-									>
-										{budget.name}
-									</Text>
-									<Text
-										style={[
-											styles.budgetAmount,
-											{ color: theme.colors.primary },
-										]}
-									>
-										${budget.totalAmount.toLocaleString()}
-									</Text>
-								</View>
+							<Text style={{ color: theme.colors.background }}>
+								Create Budget
+							</Text>
+						</Pressable>
+					</View>
+				)}
 
-								<View style={styles.progressContainer}>
-									<View
-										style={[
-											styles.progressBar,
-											{ backgroundColor: theme.colors.border },
-										]}
-									>
-										<View
-											style={[
-												styles.progressFill,
-												{
-													width: `${Math.min(progress, 100)}%`,
-													backgroundColor:
-														progress > 90
-															? theme.colors.error
-															: theme.colors.primary,
-												},
-											]}
-										/>
-									</View>
-									<Text
-										style={[
-											styles.progressText,
-											{ color: theme.colors.textSecondary },
-										]}
-									>
-										${totalSpent.toLocaleString()} spent
-									</Text>
-								</View>
+				{/* Overview Stats */}
+				{allBudgets.length > 0 && (
+					<Animated.View
+						entering={FadeInUp}
+						style={[
+							styles.overviewCard,
+							{
+								backgroundColor: theme.colors.surface,
+								borderColor: theme.colors.border,
+							},
+						]}
+					>
+						<Text style={[styles.overviewTitle, { color: theme.colors.text }]}>
+							Budget Overview
+						</Text>
+						<View style={styles.overviewStats}>
+							<View style={styles.overviewStat}>
+								<Text
+									style={[
+										styles.overviewValue,
+										{ color: theme.colors.primary },
+									]}
+								>
+									{formatCurrency(overview.totalBudgeted)}
+								</Text>
+								<Text
+									style={[
+										styles.overviewLabel,
+										{ color: theme.colors.textSecondary },
+									]}
+								>
+									Budgeted
+								</Text>
+							</View>
+							<View style={styles.overviewStat}>
+								<Text
+									style={[styles.overviewValue, { color: theme.colors.text }]}
+								>
+									{formatCurrency(overview.totalSpent)}
+								</Text>
+								<Text
+									style={[
+										styles.overviewLabel,
+										{ color: theme.colors.textSecondary },
+									]}
+								>
+									Spent
+								</Text>
+							</View>
+							<View style={styles.overviewStat}>
+								<Text
+									style={[
+										styles.overviewValue,
+										{
+											color:
+												overview.totalRemaining >= 0
+													? theme.colors.primary
+													: theme.colors.error,
+										},
+									]}
+								>
+									{formatCurrency(overview.totalRemaining)}
+								</Text>
+								<Text
+									style={[
+										styles.overviewLabel,
+										{ color: theme.colors.textSecondary },
+									]}
+								>
+									Remaining
+								</Text>
+							</View>
+						</View>
+					</Animated.View>
+				)}
 
-								<View style={styles.categoriesGrid}>
-									{budget.categories.map((category) => (
-										<View
-											key={category.id}
-											style={[
-												styles.categoryChip,
-												{ backgroundColor: category.color + '20' },
-											]}
-										>
-											<Text
-												style={[styles.categoryName, { color: category.color }]}
-											>
-												{category.name}
-											</Text>
-											<Text
-												style={[
-													styles.categoryAmount,
-													{ color: category.color },
-												]}
-											>
-												${category.amount.toLocaleString()}
-											</Text>
-										</View>
-									))}
-								</View>
-							</Pressable>
-						</Animated.View>
-					);
-				})}
+				{budgetCards}
 			</ScrollView>
 			{/* add butget fab  */}
 			<Pressable
-				onPress={() => router.push('/budgets/new')}
+				onPress={handleAddBudget}
 				style={[
 					styles.addButton,
 					{
@@ -267,5 +523,38 @@ const styles = StyleSheet.create({
 	categoryAmount: {
 		fontSize: 14,
 		fontFamily: 'Inter-Regular',
+	},
+	overviewCard: {
+		borderRadius: 12,
+		padding: 20,
+		marginBottom: 20,
+		borderWidth: 1,
+	},
+	overviewTitle: {
+		fontSize: 18,
+		fontFamily: 'Inter-SemiBold',
+		marginBottom: 16,
+	},
+	overviewStats: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+	},
+	overviewStat: {
+		alignItems: 'center',
+	},
+	overviewValue: {
+		fontSize: 18,
+		fontFamily: 'Inter-Bold',
+		marginBottom: 4,
+	},
+	overviewLabel: {
+		fontSize: 14,
+		fontFamily: 'Inter-Regular',
+	},
+	budgetTitleRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 8,
+		flex: 1,
 	},
 });

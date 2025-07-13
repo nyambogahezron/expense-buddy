@@ -1,4 +1,4 @@
-import { eq, desc, asc } from 'drizzle-orm';
+import { eq, desc, asc, sql, and, like } from 'drizzle-orm';
 import { db } from '@/db';
 import { shoppingLists, shoppingItems } from '@/db/schema';
 import { ShoppingList, ShoppingItem, Priority } from '@/types/shopping';
@@ -207,4 +207,195 @@ export const toggleItemPurchased = async (
 			updatedAt: new Date(),
 		})
 		.where(eq(shoppingItems.id, parseInt(id)));
+};
+
+export const getShoppingListAnalytics = async (
+	listId?: string
+): Promise<{
+	totalLists: number;
+	totalItems: number;
+	totalEstimatedCost: number;
+	completedItems: number;
+	completionRate: number;
+	averageItemCost: number;
+	priorityBreakdown: { priority: Priority; count: number; cost: number }[];
+}> => {
+	const whereClause = listId
+		? eq(shoppingItems.listId, parseInt(listId))
+		: undefined;
+
+	// Get total lists count
+	const totalListsResult = await db
+		.select({ count: sql<number>`COUNT(*)` })
+		.from(shoppingLists);
+	const totalLists = totalListsResult[0]?.count || 0;
+
+	// Get items analytics
+	const itemsAnalytics = await db
+		.select({
+			totalItems: sql<number>`COUNT(*)`,
+			totalCost: sql<number>`SUM(${shoppingItems.estimatedCost})`,
+			completedItems: sql<number>`SUM(CASE WHEN ${shoppingItems.purchased} = 1 THEN 1 ELSE 0 END)`,
+			avgCost: sql<number>`AVG(${shoppingItems.estimatedCost})`,
+		})
+		.from(shoppingItems)
+		.where(whereClause);
+
+	const analytics = itemsAnalytics[0];
+
+	// Get priority breakdown
+	const priorityBreakdown = await db
+		.select({
+			priority: shoppingItems.priority,
+			count: sql<number>`COUNT(*)`,
+			cost: sql<number>`SUM(${shoppingItems.estimatedCost})`,
+		})
+		.from(shoppingItems)
+		.where(whereClause)
+		.groupBy(shoppingItems.priority);
+
+	return {
+		totalLists,
+		totalItems: analytics?.totalItems || 0,
+		totalEstimatedCost: analytics?.totalCost || 0,
+		completedItems: analytics?.completedItems || 0,
+		completionRate: analytics?.totalItems
+			? (analytics.completedItems / analytics.totalItems) * 100
+			: 0,
+		averageItemCost: analytics?.avgCost || 0,
+		priorityBreakdown: priorityBreakdown.map((p) => ({
+			priority: p.priority as Priority,
+			count: p.count,
+			cost: p.cost,
+		})),
+	};
+};
+
+export const getShoppingListsByStore = async (): Promise<
+	{ store: string; count: number; totalCost: number }[]
+> => {
+	const storeAnalytics = await db
+		.select({
+			store: shoppingLists.store,
+			count: sql<number>`COUNT(*)`,
+			totalCost: sql<number>`SUM(${shoppingItems.estimatedCost})`,
+		})
+		.from(shoppingLists)
+		.leftJoin(shoppingItems, eq(shoppingLists.id, shoppingItems.listId))
+		.groupBy(shoppingLists.store)
+		.orderBy(desc(sql`COUNT(*)`));
+
+	return storeAnalytics.map((s) => ({
+		store: s.store || 'No Store',
+		count: s.count,
+		totalCost: s.totalCost || 0,
+	}));
+};
+
+export const getShoppingItemsByPriority = async (
+	priority: Priority
+): Promise<ShoppingItem[]> => {
+	const itemRecords = await db
+		.select()
+		.from(shoppingItems)
+		.where(eq(shoppingItems.priority, priority))
+		.orderBy(desc(shoppingItems.createdAt));
+
+	return itemRecords.map(toItemModel);
+};
+
+export const searchShoppingItems = async (
+	query: string
+): Promise<ShoppingItem[]> => {
+	const itemRecords = await db
+		.select()
+		.from(shoppingItems)
+		.where(like(shoppingItems.name, `%${query}%`))
+		.orderBy(desc(shoppingItems.createdAt));
+
+	return itemRecords.map(toItemModel);
+};
+
+export const getShoppingItemsNearBudget = async (
+	budgetThreshold: number = 100
+): Promise<ShoppingItem[]> => {
+	const itemRecords = await db
+		.select()
+		.from(shoppingItems)
+		.where(
+			and(
+				sql`${shoppingItems.estimatedCost} >= ${budgetThreshold}`,
+				eq(shoppingItems.purchased, false)
+			)
+		)
+		.orderBy(desc(shoppingItems.estimatedCost));
+
+	return itemRecords.map(toItemModel);
+};
+
+export const getCompletedShoppingLists = async (): Promise<ShoppingList[]> => {
+	const listRecords = await db
+		.select()
+		.from(shoppingLists)
+		.orderBy(desc(shoppingLists.updatedAt));
+
+	const completedLists: ShoppingList[] = [];
+
+	for (const listRecord of listRecords) {
+		const itemRecords = await db
+			.select()
+			.from(shoppingItems)
+			.where(eq(shoppingItems.listId, listRecord.id));
+
+		const items = itemRecords.map(toItemModel);
+		const list = toListModel(listRecord, items);
+
+		if (list.completed) {
+			completedLists.push(list);
+		}
+	}
+
+	return completedLists;
+};
+
+export const markAllItemsAsPurchased = async (
+	listId: string
+): Promise<void> => {
+	await db
+		.update(shoppingItems)
+		.set({
+			purchased: true,
+			updatedAt: new Date(),
+		})
+		.where(eq(shoppingItems.listId, parseInt(listId)));
+};
+
+export const duplicateShoppingList = async (
+	listId: string,
+	newName?: string
+): Promise<ShoppingList> => {
+	const originalList = await getShoppingListById(listId);
+	if (!originalList) {
+		throw new Error('Shopping list not found');
+	}
+
+	// Create new list
+	const newList = await createShoppingList({
+		name: newName || `${originalList.name} (Copy)`,
+		store: originalList.store,
+	});
+
+	// Copy all items
+	for (const item of originalList.items) {
+		await addShoppingItem(newList.id, {
+			name: item.name,
+			category: item.category,
+			quantity: item.quantity,
+			estimatedCost: item.estimatedCost,
+			priority: item.priority,
+			purchased: false,
+		});
+	}
+
+	return getShoppingListById(newList.id) as Promise<ShoppingList>;
 };

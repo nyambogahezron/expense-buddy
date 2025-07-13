@@ -5,6 +5,7 @@ import * as budgetService from '@/services/db/budgets';
 interface BudgetStore {
 	budgets: Budget[];
 	selectedBudget: Budget | null;
+	budgetStats: any | null;
 	isLoading: boolean;
 	error: string | null;
 
@@ -24,24 +25,33 @@ interface BudgetStore {
 		categoryId: string,
 		spent: number
 	) => Promise<void>;
+	getBudgetStats: (budgetId: string) => Promise<any>;
+	getActiveBudgets: () => Promise<void>;
+	checkBudgetNameExists: (name: string, excludeId?: string) => Promise<boolean>;
 }
 
 export const useBudgetStore = create<BudgetStore>((set, get) => ({
 	budgets: [],
 	selectedBudget: null,
+	budgetStats: null,
 	isLoading: false,
 	error: null,
 
 	loadBudgets: async () => {
+		const state = get();
+		if (state.isLoading) return; // Prevent multiple simultaneous calls
+
 		set({ isLoading: true, error: null });
 		try {
 			const budgets = await budgetService.getAllBudgets();
-			set({ budgets, isLoading: false });
+			set({ budgets: budgets || [], isLoading: false });
 		} catch (error) {
+			console.error('Error loading budgets:', error);
 			set({
 				error:
 					error instanceof Error ? error.message : 'Failed to load budgets',
 				isLoading: false,
+				budgets: [], // Set empty array to prevent undefined issues
 			});
 		}
 	},
@@ -134,6 +144,63 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
 						: 'Failed to update category spent amount',
 				isLoading: false,
 			});
+		}
+	},
+
+	getBudgetStats: async (budgetId) => {
+		set({ isLoading: true, error: null });
+		try {
+			const stats = await budgetService.getBudgetStats(budgetId);
+			set({ budgetStats: stats, isLoading: false });
+			return stats;
+		} catch (error) {
+			set({
+				error:
+					error instanceof Error
+						? error.message
+						: 'Failed to load budget stats',
+				isLoading: false,
+			});
+			return null;
+		}
+	},
+
+	getActiveBudgets: async () => {
+		const state = get();
+		if (state.isLoading) return; // Prevent multiple simultaneous calls
+
+		set({ isLoading: true, error: null });
+		try {
+			const activeBudgets = await budgetService.getActiveBudgets();
+			set({ budgets: activeBudgets, isLoading: false });
+		} catch (error) {
+			console.error('Error loading active budgets:', error);
+			set({
+				error:
+					error instanceof Error
+						? error.message
+						: 'Failed to load active budgets',
+				isLoading: false,
+				budgets: [], // Set empty array to prevent undefined issues
+			});
+		}
+	},
+
+	checkBudgetNameExists: async (name, excludeId) => {
+		set({ isLoading: true, error: null });
+		try {
+			const exists = await budgetService.checkBudgetNameExists(name, excludeId);
+			set({ isLoading: false });
+			return exists;
+		} catch (error) {
+			set({
+				error:
+					error instanceof Error
+						? error.message
+						: 'Failed to check if budget name exists',
+				isLoading: false,
+			});
+			return false;
 		}
 	},
 }));

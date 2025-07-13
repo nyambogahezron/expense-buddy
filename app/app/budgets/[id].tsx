@@ -5,32 +5,166 @@ import {
 	ScrollView,
 	Pressable,
 	Platform,
+	RefreshControl,
 } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useThemeStore } from '@/store/theme';
 import { useBudgetStore } from '@/store/budgets';
-import { ArrowLeft, CreditCard as Edit2, Trash } from 'lucide-react-native';
+import {
+	ArrowLeft,
+	CreditCard as Edit2,
+	Trash,
+	TrendingUp,
+	Calendar,
+	AlertTriangle,
+} from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { formatCurrency, getBudgetStatus } from '@/utils/budgetHelpers';
+import React, { useEffect, useState, useCallback } from 'react';
+import * as budgetDb from '@/services/db/budgets';
+import { Budget } from '@/types/budget';
 
 export default function BudgetDetailScreen() {
 	const { theme } = useThemeStore();
-	const { selectedBudget, deleteBudget } = useBudgetStore();
+	const { selectBudget } = useBudgetStore();
 	const params = useLocalSearchParams();
+	const [budget, setBudget] = useState<Budget | null>(null);
+	const [budgetStats, setBudgetStats] = useState<any>(null);
+	const [loading, setLoading] = useState(true);
+	const [refreshing, setRefreshing] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
-	if (!selectedBudget) {
-		return null;
+	const budgetId = typeof params.id === 'string' ? params.id : null;
+
+	const loadBudgetData = useCallback(async () => {
+		if (!budgetId) {
+			setLoading(false);
+			return;
+		}
+
+		try {
+			setError(null);
+			const budgetData = await budgetDb.getBudgetById(budgetId);
+
+			if (!budgetData) {
+				setError('Budget not found');
+				setBudget(null);
+				setBudgetStats(null);
+				return;
+			}
+
+			setBudget(budgetData);
+			selectBudget(budgetData);
+
+			// Load stats separately to avoid blocking UI
+			try {
+				const statsData = await budgetDb.getBudgetStats(budgetId);
+				setBudgetStats(statsData);
+			} catch (statsError) {
+				console.warn('Error loading budget stats:', statsError);
+				// Don't fail the whole operation if stats fail
+				setBudgetStats(null);
+			}
+		} catch (err) {
+			console.error('Error loading budget:', err);
+			setError(err instanceof Error ? err.message : 'Failed to load budget');
+			setBudget(null);
+			setBudgetStats(null);
+		} finally {
+			setLoading(false);
+		}
+	}, [budgetId, selectBudget]);
+
+	useEffect(() => {
+		let mounted = true;
+		let timeoutId: ReturnType<typeof setTimeout>;
+
+		const initLoad = async () => {
+			if (budgetId && mounted) {
+				// Set a timeout to prevent infinite loading
+				timeoutId = setTimeout(() => {
+					if (mounted) {
+						console.warn('Budget loading timeout');
+						setLoading(false);
+						setError('Loading timeout - please try again');
+					}
+				}, 10000); // 10 second timeout
+
+				await loadBudgetData();
+				if (timeoutId) clearTimeout(timeoutId);
+			}
+		};
+
+		initLoad();
+
+		return () => {
+			mounted = false;
+			if (timeoutId) clearTimeout(timeoutId);
+		};
+	}, [budgetId, loadBudgetData]);
+
+	const refresh = async () => {
+		if (refreshing) return; // Prevent multiple refreshes
+
+		setRefreshing(true);
+		try {
+			await loadBudgetData();
+		} catch (err) {
+			console.error('Error during refresh:', err);
+		} finally {
+			setRefreshing(false);
+		}
+	};
+
+	const handleDelete = async () => {
+		if (!budget) return;
+
+		try {
+			await budgetDb.deleteBudget(budget.id);
+			router.back();
+		} catch (err) {
+			console.error('Error deleting budget:', err);
+			setError(err instanceof Error ? err.message : 'Failed to delete budget');
+		}
+	};
+
+	const handleEdit = () => {
+		if (budget) {
+			selectBudget(budget);
+			router.push(`/budgets/edit/${budget.id}`);
+		}
+	};
+
+	if (loading) {
+		return (
+			<View
+				style={[styles.container, { backgroundColor: theme.colors.background }]}
+			>
+				<Text style={[styles.emptyState, { color: theme.colors.text }]}>
+					Loading budget...
+				</Text>
+			</View>
+		);
 	}
 
-	const totalSpent = selectedBudget.categories.reduce(
-		(sum, cat) => sum + cat.spent,
+	if (error || !budget) {
+		return (
+			<View
+				style={[styles.container, { backgroundColor: theme.colors.background }]}
+			>
+				<Text style={[styles.emptyState, { color: theme.colors.error }]}>
+					{error || 'Budget not found'}
+				</Text>
+			</View>
+		);
+	}
+
+	const totalSpent = budget.categories.reduce(
+		(sum: number, cat: any) => sum + cat.spent,
 		0
 	);
-	const remaining = selectedBudget.totalAmount - totalSpent;
-
-	const handleDelete = () => {
-		deleteBudget(selectedBudget.id);
-		router.back();
-	};
+	const remaining = budget.totalAmount - totalSpent;
+	const status = getBudgetStatus(budget);
 
 	return (
 		<View
@@ -55,11 +189,11 @@ export default function BudgetDetailScreen() {
 									<ArrowLeft size={24} color={theme.colors.text} />
 								</Pressable>
 								<Text style={[styles.title, { color: theme.colors.text }]}>
-									{selectedBudget.name}
+									{budget.name}
 								</Text>
 								<View style={styles.actions}>
 									<Pressable
-										onPress={() => router.push('/budgets/edit')}
+										onPress={handleEdit}
 										style={[
 											styles.actionButton,
 											{ backgroundColor: theme.colors.primary },
@@ -83,8 +217,74 @@ export default function BudgetDetailScreen() {
 				}}
 			/>
 
-			<ScrollView style={styles.content}>
+			<ScrollView
+				style={styles.content}
+				refreshControl={
+					<RefreshControl
+						refreshing={refreshing}
+						onRefresh={refresh}
+						tintColor={theme.colors.primary}
+					/>
+				}
+			>
 				<View style={styles.contentWrapper}>
+					{/* Status Banner */}
+					<Animated.View
+						entering={FadeIn.delay(100)}
+						style={[
+							styles.statusBanner,
+							{
+								backgroundColor:
+									status.status === 'over-budget'
+										? theme.colors.error + '20'
+										: status.status === 'warning'
+										? '#F59E0B20'
+										: theme.colors.primary + '20',
+								borderColor:
+									status.status === 'over-budget'
+										? theme.colors.error
+										: status.status === 'warning'
+										? '#F59E0B'
+										: theme.colors.primary,
+							},
+						]}
+					>
+						<View style={styles.statusContent}>
+							{status.status === 'over-budget' ? (
+								<AlertTriangle size={20} color={theme.colors.error} />
+							) : status.status === 'warning' ? (
+								<TrendingUp size={20} color='#F59E0B' />
+							) : (
+								<Calendar size={20} color={theme.colors.primary} />
+							)}
+							<Text
+								style={[
+									styles.statusText,
+									{
+										color:
+											status.status === 'over-budget'
+												? theme.colors.error
+												: status.status === 'warning'
+												? '#F59E0B'
+												: theme.colors.primary,
+									},
+								]}
+							>
+								{status.message}
+							</Text>
+						</View>
+						{budgetStats && (
+							<Text
+								style={[
+									styles.statusSubtext,
+									{ color: theme.colors.textSecondary },
+								]}
+							>
+								Budget period: {budget.period}
+							</Text>
+						)}
+					</Animated.View>
+
 					<Animated.View
 						entering={FadeIn}
 						style={[
@@ -105,7 +305,7 @@ export default function BudgetDetailScreen() {
 								Total Budget
 							</Text>
 							<Text style={[styles.summaryValue, { color: theme.colors.text }]}>
-								${selectedBudget.totalAmount.toLocaleString()}
+								{formatCurrency(budget.totalAmount)}
 							</Text>
 						</View>
 						<View style={styles.summaryRow}>
@@ -118,7 +318,7 @@ export default function BudgetDetailScreen() {
 								Total Spent
 							</Text>
 							<Text style={[styles.summaryValue, { color: theme.colors.text }]}>
-								${totalSpent.toLocaleString()}
+								{formatCurrency(totalSpent)}
 							</Text>
 						</View>
 						<View style={styles.summaryRow}>
@@ -148,7 +348,7 @@ export default function BudgetDetailScreen() {
 						<Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
 							Categories
 						</Text>
-						{selectedBudget.categories.map((category) => {
+						{budget.categories.map((category: any) => {
 							const progress = (category.spent / category.amount) * 100;
 							return (
 								<Animated.View
@@ -350,5 +550,33 @@ const styles = StyleSheet.create({
 	progressFill: {
 		height: '100%',
 		borderRadius: 4,
+	},
+	emptyState: {
+		textAlign: 'center',
+		fontSize: 16,
+		fontFamily: 'Inter-Regular',
+		marginTop: 50,
+	},
+	statusBanner: {
+		borderRadius: 16,
+		padding: 16,
+		marginBottom: 20,
+		borderWidth: 1,
+	},
+	statusContent: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 12,
+		marginBottom: 4,
+	},
+	statusText: {
+		fontSize: 16,
+		fontFamily: 'Inter-SemiBold',
+		flex: 1,
+	},
+	statusSubtext: {
+		fontSize: 14,
+		fontFamily: 'Inter-Regular',
+		marginLeft: 32,
 	},
 });
