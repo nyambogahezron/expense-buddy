@@ -11,10 +11,6 @@ export default function TransactionLayout() {
 					...(Platform.OS === 'web' && {}),
 				},
 			}}
-		>
-			<Stack.Screen name='[id]' />
-			<Stack.Screen name='new' />
-			<Stack.Screen name='edit' />
-		</Stack>
+		/>
 	);
 }

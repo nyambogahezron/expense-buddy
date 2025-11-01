@@ -7,10 +7,6 @@ export default function BudgetLayout() {
 				headerShown: false,
 				animation: 'slide_from_bottom',
 			}}
-		>
-			<Stack.Screen name='[id]' />
-			<Stack.Screen name='new' />
-			<Stack.Screen name='edit' />
-		</Stack>
+		/>
 	);
 }
