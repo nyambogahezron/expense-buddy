@@ -77,7 +77,7 @@ export default function Onboarding() {
 
 	const endOnboarding = () => {
 		setCurrentIndex(0);
-		router.replace('/(tabs)/transactions');
+		router.replace('/(drawer)/home/transactions');
 	};
 
 	const onNext = () => {

@@ -6,7 +6,7 @@ export default function OnboardingLayout() {
 
 	useEffect(() => {
 		if (skipForDev) {
-			router.replace('/(tabs)/transactions');
+			router.replace('/(drawer)/home/transactions');
 		}
 	}, [skipForDev]);
 

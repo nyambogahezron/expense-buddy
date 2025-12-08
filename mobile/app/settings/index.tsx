@@ -16,8 +16,6 @@ import {
 	DollarSign,
 	BarChart3,
 	UserCircle,
-	KeySquare,
-	ShieldCheck,
 } from 'lucide-react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
@@ -77,13 +75,13 @@ export default function SettingsScreen() {
 				contentContainerStyle={styles.contentContainer}
 				showsVerticalScrollIndicator={false}
 			>
-				{/* Account & Security Section */}
+				{/* Account Section */}
 				<Animated.View
 					entering={FadeInUp.delay(50).duration(400)}
 					style={styles.section}
 				>
 					<Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-						Account & Security
+						Account
 					</Text>
 
 					{/* Edit Profile */}
@@ -110,64 +108,6 @@ export default function SettingsScreen() {
 								style={[styles.settingsItemTitle, { color: theme.colors.text }]}
 							>
 								Edit Profile
-							</Text>
-						</View>
-						<ChevronRight size={20} color={theme.colors.textSecondary} />
-					</Pressable>
-
-					{/* Enable Authentication */}
-					<Pressable
-						style={({ pressed }) => [
-							styles.settingsItem,
-							{
-								backgroundColor: theme.colors.surface,
-								opacity: pressed ? 0.9 : 1,
-							},
-						]}
-						onPress={() => router.push('/settings/authentication')}
-					>
-						<View style={styles.settingsItemContent}>
-							<View
-								style={[
-									styles.iconContainer,
-									{ backgroundColor: theme.colors.accent + '20' },
-								]}
-							>
-								<ShieldCheck size={20} color={theme.colors.accent} />
-							</View>
-							<Text
-								style={[styles.settingsItemTitle, { color: theme.colors.text }]}
-							>
-								Authentication
-							</Text>
-						</View>
-						<ChevronRight size={20} color={theme.colors.textSecondary} />
-					</Pressable>
-
-					{/* Change Password */}
-					<Pressable
-						style={({ pressed }) => [
-							styles.settingsItem,
-							{
-								backgroundColor: theme.colors.surface,
-								opacity: pressed ? 0.9 : 1,
-							},
-						]}
-						onPress={() => router.push('/settings/change-password')}
-					>
-						<View style={styles.settingsItemContent}>
-							<View
-								style={[
-									styles.iconContainer,
-									{ backgroundColor: theme.colors.primary + '20' },
-								]}
-							>
-								<KeySquare size={20} color={theme.colors.primary} />
-							</View>
-							<Text
-								style={[styles.settingsItemTitle, { color: theme.colors.text }]}
-							>
-								Change Password
 							</Text>
 						</View>
 						<ChevronRight size={20} color={theme.colors.textSecondary} />

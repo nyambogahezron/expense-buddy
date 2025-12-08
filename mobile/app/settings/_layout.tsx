@@ -16,20 +16,6 @@ export default function SettingsLayout() {
 				}}
 			/>
 			<Stack.Screen
-				name='authentication'
-				options={{
-					title: 'Authentication',
-					headerShown: true,
-				}}
-			/>
-			<Stack.Screen
-				name='change-password'
-				options={{
-					title: 'Change Password',
-					headerShown: true,
-				}}
-			/>
-			<Stack.Screen
 				name='theme'
 				options={{
 					title: 'Theme',

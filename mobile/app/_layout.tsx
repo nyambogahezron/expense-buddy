@@ -8,9 +8,7 @@ import {
 	Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import { useThemeStore } from '@/store/theme';
-import { useAppLock } from '@/hooks/useAppLock';
 import { useState, useEffect } from 'react';
-import { AppState } from 'react-native';
 import * as SystemUI from 'expo-system-ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -30,9 +28,6 @@ export default function RootLayout() {
 	useDrizzleStudio(db.$client);
 
 	const { theme } = useThemeStore();
-	const { isLocked, showOverlay, unlock, showAppOverlay, hideAppOverlay } =
-		useAppLock();
-	const [appState, setAppState] = useState(AppState.currentState);
 	const [isInitialized, setIsInitialized] = useState(false);
 
 	const [fontsLoaded] = useFonts({
@@ -42,22 +37,7 @@ export default function RootLayout() {
 		'Inter-Bold': Inter_700Bold,
 	});
 
-	useEffect(() => {
-		const subscription = AppState.addEventListener('change', (nextAppState) => {
-			if (appState.match(/inactive|background/) && nextAppState === 'active') {
-				// App has come to the foreground
-				hideAppOverlay();
-			} else if (nextAppState.match(/inactive|background/)) {
-				// App has gone to the background
-				showAppOverlay();
-			}
-			setAppState(nextAppState);
-		});
 
-		return () => {
-			subscription.remove();
-		};
-	}, [appState, hideAppOverlay, showAppOverlay]);
 
 	useEffect(() => {
 		// Initialize categories after successful migration
@@ -87,11 +67,10 @@ export default function RootLayout() {
 								theme.name.toLocaleLowerCase() === 'light' ? 'dark' : 'light',
 							statusBarBackgroundColor: theme.colors.primary,
 						}}
-						initialRouteName='onboarding'
+						initialRouteName='(drawer)'
 					>
 						<Stack.Screen name='onboarding' options={{ headerShown: false }} />
-						<Stack.Screen name='(auth)' options={{ headerShown: false }} />
-						<Stack.Screen name='(tabs)' options={{ headerShown: false }} />
+						<Stack.Screen name='(drawer)' options={{ headerShown: false }} />
 						<Stack.Screen name='budgets' options={{ headerShown: false }} />
 						<Stack.Screen
 							name='transactions'
@@ -110,11 +89,13 @@ export default function RootLayout() {
 							name='profile'
 							options={{ headerShown: true, animation: 'slide_from_right' }}
 						/>
+						<Stack.Screen
+							name='notifications'
+							options={{ headerShown: false, animation: 'slide_from_right' }}
+						/>
 
 						<Stack.Screen name='+not-found' />
 					</Stack>
-					{/* <LockScreen visible={isLocked} onUnlock={unlock} />
-				<AppOverlay visible={showOverlay} /> */}
 				</GestureHandlerRootView>
 			</QueryClientProvider>
 		</SafeAreaProvider>

@@ -3,17 +3,15 @@ import {
 	Pressable,
 	StyleSheet,
 	View,
-	Text,
 	Dimensions,
 	Platform,
+	RefreshControl
 } from 'react-native';
 import Animated, {
 	useAnimatedScrollHandler,
 	useSharedValue,
 	FadeIn,
 	FadeOut,
-	SlideInDown,
-	SlideOutDown,
 	useAnimatedRef,
 	useAnimatedStyle,
 	interpolate,
@@ -21,15 +19,13 @@ import Animated, {
 } from 'react-native-reanimated';
 import { CategoryFilter } from '@/components/CategoryFilter';
 import { TransactionCategory } from '@/types/transaction';
-import { RefreshControl } from 'react-native';
 import { useThemeStore } from '@/store/theme';
 import EmptyState from '@/components/EmptyState';
 import TransactionList from '@/components/transaction/TransactionList';
 import ErrorState from '@/components/ErrorState';
-import { Plus, Filter, ArrowDownUp } from 'lucide-react-native';
+import { Plus} from 'lucide-react-native';
 import { router, Stack } from 'expo-router';
 import { useTransactionStore } from '@/store/transactions';
-import HomeHeader from '@/components/HomeHeader';
 import { TransactionSkeleton } from '@/components/TransactionItem';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const { width } = Dimensions.get('window');
@@ -39,8 +35,6 @@ export default function TransactionsScreen() {
 		transactions,
 		isLoading: loading,
 		error,
-		sortOrder,
-		setSortOrder,
 		loadTransactions,
 	} = useTransactionStore();
 	const [selectedCategory, setSelectedCategory] =
@@ -64,60 +58,8 @@ export default function TransactionsScreen() {
 		setRefreshing(false);
 	}, [loadTransactions]);
 
-	const getTransactionSummary = useCallback(() => {
-		const summary = {
-			totalIncome: 0,
-			totalExpense: 0,
-			balance: 0,
-			categorySummary: {} as Record<string, number>,
-		};
-
-		transactions.forEach((transaction) => {
-			if (transaction.type === 'income') {
-				summary.totalIncome += transaction.amount;
-			} else {
-				summary.totalExpense += transaction.amount;
-			}
-
-			// Update category summary
-			if (!summary.categorySummary[transaction.category]) {
-				summary.categorySummary[transaction.category] = 0;
-			}
-
-			if (transaction.type === 'income') {
-				summary.categorySummary[transaction.category] += transaction.amount;
-			} else {
-				summary.categorySummary[transaction.category] -= transaction.amount;
-			}
-		});
-
-		summary.balance = summary.totalIncome - summary.totalExpense;
-		return summary;
-	}, [transactions]);
-
 	const scrollOffset = useSharedValue(0);
 	const scrollRef = useAnimatedRef<Animated.ScrollView>();
-
-	const headerAnimatedStyles = useAnimatedStyle(() => {
-		return {
-			transform: [
-				{
-					translateY: interpolate(
-						scrollOffset.value,
-						[-HEADER_HEIGHT, 0, HEADER_HEIGHT, HEADER_HEIGHT],
-						[-HEADER_HEIGHT / 2, 0, HEADER_HEIGHT * 0.75]
-					),
-				},
-				{
-					scale: interpolate(
-						scrollOffset.value,
-						[-HEADER_HEIGHT, 0, HEADER_HEIGHT],
-						[1.5, 1, 1]
-					),
-				},
-			],
-		};
-	});
 
 	const headerAnimatedStyle = useAnimatedStyle(() => {
 		return {
@@ -138,35 +80,6 @@ export default function TransactionsScreen() {
 		};
 	}, []);
 
-	const fixedCategoryFilterStyle = useAnimatedStyle(() => {
-		const showFixedFilter = interpolate(
-			scrollOffset.value,
-			[
-				HEADER_HEIGHT - CATEGORY_FILTER_HEIGHT - 20,
-				HEADER_HEIGHT - CATEGORY_FILTER_HEIGHT,
-			],
-			[0, 1],
-			Extrapolation.CLAMP
-		);
-
-		return {
-			opacity: showFixedFilter,
-			transform: [
-				{
-					translateY: interpolate(
-						scrollOffset.value,
-						[
-							HEADER_HEIGHT - CATEGORY_FILTER_HEIGHT - 20,
-							HEADER_HEIGHT - CATEGORY_FILTER_HEIGHT,
-						],
-						[-50, 0],
-						Extrapolation.CLAMP
-					),
-				},
-			],
-		};
-	});
-
 	const scrollHandler = useAnimatedScrollHandler((event) => {
 		scrollOffset.value = event.contentOffset.y;
 	});
@@ -179,26 +92,7 @@ export default function TransactionsScreen() {
 		? transactions.filter((t) => t.category === selectedCategory)
 		: transactions;
 
-	const summary = getTransactionSummary();
 
-	const toggleFabMenu = () => {
-		setShowFabMenu(!showFabMenu);
-	};
-
-	const handleCreateTransaction = () => {
-		setShowFabMenu(false);
-		router.push('/transactions/new');
-	};
-
-	const handleShowFilters = () => {
-		setShowFabMenu(false);
-	};
-
-	const handleSort = () => {
-		setShowFabMenu(false);
-		// Toggle sort order
-		setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
-	};
 
 	if (loading && !refreshing) {
 		return (
@@ -237,28 +131,6 @@ export default function TransactionsScreen() {
 							/>
 						);
 					},
-					header: () => (
-						<Animated.View
-							style={[
-								fixedCategoryFilterStyle,
-								{
-									width: '100%',
-									zIndex: 999,
-									backgroundColor: theme.colors.background,
-									...(Platform.OS === 'web' && {
-										maxWidth: 1200,
-										marginHorizontal: 'auto',
-										width: '100%',
-									}),
-								},
-							]}
-						>
-							<CategoryFilter
-								selectedCategory={selectedCategory}
-								onSelectCategory={setSelectedCategory}
-							/>
-						</Animated.View>
-					),
 					headerStyle: {
 						backgroundColor: theme.colors.primary,
 					},
@@ -285,7 +157,6 @@ export default function TransactionsScreen() {
 					<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
 				}
 			>
-				{/* header */}
 				<View
 					style={[
 						{
@@ -294,7 +165,6 @@ export default function TransactionsScreen() {
 						},
 					]}
 				>
-					<HomeHeader balance={summary.balance} />
 					<CategoryFilter
 						selectedCategory={selectedCategory}
 						onSelectCategory={setSelectedCategory}
@@ -331,66 +201,13 @@ export default function TransactionsScreen() {
 						/>
 					</Animated.View>
 				)}
-
-				{showFabMenu && (
-					<Animated.View
-						entering={SlideInDown.springify().damping(15)}
-						exiting={SlideOutDown.duration(200)}
-						style={[
-							styles.fabMenuContainer,
-							{ bottom: 80 + Math.max(insets.bottom, 0) },
-						]}
-					>
-						<Pressable
-							onPress={handleCreateTransaction}
-							style={[
-								styles.fabMenuItem,
-								{ backgroundColor: theme.colors.primary },
-							]}
-						>
-							<Plus size={20} color='#FFFFFF' />
-							<Text style={styles.fabMenuItemText}>New Transaction</Text>
-						</Pressable>
-
-						<Pressable
-							onPress={handleShowFilters}
-							style={[
-								styles.fabMenuItem,
-								{ backgroundColor: theme.colors.surface },
-							]}
-						>
-							<Filter size={20} color={theme.colors.text} />
-							<Text
-								style={[styles.fabMenuItemText, { color: theme.colors.text }]}
-							>
-								Filter
-							</Text>
-						</Pressable>
-
-						<Pressable
-							onPress={handleSort}
-							style={[
-								styles.fabMenuItem,
-								{ backgroundColor: theme.colors.surface },
-							]}
-						>
-							<ArrowDownUp size={20} color={theme.colors.text} />
-							<Text
-								style={[styles.fabMenuItemText, { color: theme.colors.text }]}
-							>
-								Sort {sortOrder === 'desc' ? 'Oldest First' : 'Newest First'}
-							</Text>
-						</Pressable>
-					</Animated.View>
-				)}
-
+				
 				<Pressable
-					onPress={toggleFabMenu}
+					onPress={() => router.push('/transactions/new')}
 					style={[
 						styles.fab,
 						{
 							backgroundColor: theme.colors.primary,
-							transform: [{ rotate: showFabMenu ? '45deg' : '0deg' }],
 						},
 					]}
 				>

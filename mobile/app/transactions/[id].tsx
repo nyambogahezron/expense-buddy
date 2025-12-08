@@ -59,7 +59,7 @@ export default function TransactionsDetails() {
 			setDeleting(true);
 			await deleteTransaction(transaction.id);
 			// Navigate immediately without waiting, since we use optimistic updates
-			route.push('/(tabs)/transactions');
+			route.push('/(drawer)/home/transactions');
 		} catch (err) {
 			setError('Failed to delete transaction');
 			console.error(err);
@@ -92,7 +92,7 @@ export default function TransactionsDetails() {
 				<Text style={styles.errorText}>{error || 'Transaction not found'}</Text>
 				<TouchableOpacity
 					style={styles.backButton}
-					onPress={() => route.push('/(tabs)/transactions')}
+					onPress={() => route.push('/(drawer)/home/transactions')}
 				>
 					<Text style={styles.backButtonText}>Go Back</Text>
 				</TouchableOpacity>

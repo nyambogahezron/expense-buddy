@@ -20,7 +20,6 @@ import { useThemeStore } from '@/store/theme';
 import {
 	Settings,
 	Bell,
-	LogOut,
 	X,
 	ShoppingCart,
 	MenuIcon,
@@ -78,13 +77,7 @@ export default function MenuNav() {
 		{ icon: Bell, label: 'Notifications', route: '/notifications' },
 		{ icon: PaintBucket, label: 'Theme', route: '/settings/theme' },
 		{ icon: Settings, label: 'Settings', route: '/settings/index' },
-		{ icon: LogOut, label: 'Logout', action: () => handleLogout() },
 	];
-
-	const handleLogout = useCallback(() => {
-		setModalVisible(false);
-		router.push('/(auth)/login');
-	}, [router]);
 
 	const handleMenuItemPress = useCallback(
 		(route: any, action: any) => {
