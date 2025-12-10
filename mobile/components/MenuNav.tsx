@@ -24,7 +24,6 @@ import {
 	ShoppingCart,
 	MenuIcon,
 	LucideIcon,
-	PaintBucket,
 } from 'lucide-react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -75,7 +74,6 @@ export default function MenuNav() {
 	const menuItems = [
 		{ icon: ShoppingCart, label: 'Shopping List', route: '/shopping' },
 		{ icon: Bell, label: 'Notifications', route: '/notifications' },
-		{ icon: PaintBucket, label: 'Theme', route: '/settings/theme' },
 		{ icon: Settings, label: 'Settings', route: '/settings/index' },
 	];
 

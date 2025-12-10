@@ -6,7 +6,7 @@
 		"orientation": "portrait",
 		"icon": "./assets/images/icon.png",
 		"scheme": "myapp",
-		"userInterfaceStyle": "automatic",
+		"userInterfaceStyle": "dark",
 		"newArchEnabled": true,
 		"ios": {
 			"supportsTablet": true,
@@ -26,7 +26,7 @@
 				"android.permission.USE_FINGERPRINT"
 			],
 			"package": "com.hezron.expensebuddy",
-			"userInterfaceStyle": "automatic",
+			"userInterfaceStyle": "dark",
 			"softwareKeyboardLayoutMode": "pan"
 		},
 		"web": {

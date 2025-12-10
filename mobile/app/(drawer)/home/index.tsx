@@ -23,14 +23,17 @@ import { useThemeStore } from '@/store/theme';
 import EmptyState from '@/components/EmptyState';
 import TransactionList from '@/components/transaction/TransactionList';
 import ErrorState from '@/components/ErrorState';
-import { Plus} from 'lucide-react-native';
+import { Plus, Menu } from 'lucide-react-native';
 import { router, Stack } from 'expo-router';
 import { useTransactionStore } from '@/store/transactions';
 import { TransactionSkeleton } from '@/components/TransactionItem';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DrawerActions } from '@react-navigation/native';
+import { useNavigation } from 'expo-router';
 const { width } = Dimensions.get('window');
 
 export default function TransactionsScreen() {
+	const navigation = useNavigation();
 	const {
 		transactions,
 		isLoading: loading,
@@ -134,6 +137,18 @@ export default function TransactionsScreen() {
 					headerStyle: {
 						backgroundColor: theme.colors.primary,
 					},
+					headerLeft: () => (
+						<Pressable
+							onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+							style={({ pressed }) => ({
+								padding: 8,
+								marginLeft: 8,
+								opacity: pressed ? 0.7 : 1,
+							})}
+						>
+							<Menu size={24} color="#fff" />
+						</Pressable>
+					),
 				}}
 			/>
 

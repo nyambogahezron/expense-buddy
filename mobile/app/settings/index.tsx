@@ -12,7 +12,6 @@ import { useThemeStore } from '@/store/theme';
 import { useState } from 'react';
 import {
 	ChevronRight,
-	Paintbrush,
 	DollarSign,
 	BarChart3,
 	UserCircle,
@@ -114,44 +113,7 @@ export default function SettingsScreen() {
 					</Pressable>
 				</Animated.View>
 
-				{/* Theme Settings Section */}
-				<Animated.View
-					entering={FadeInUp.delay(150).duration(400)}
-					style={styles.section}
-				>
-					<Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-						Appearance
-					</Text>
-					<Pressable
-						style={({ pressed }) => [
-							styles.settingsItem,
-							{
-								backgroundColor: theme.colors.surface,
-								opacity: pressed ? 0.9 : 1,
-							},
-						]}
-						onPress={() => router.push('/settings/theme')}
-					>
-						<View style={styles.settingsItemContent}>
-							<View
-								style={[
-									styles.iconContainer,
-									{ backgroundColor: theme.colors.primary + '20' },
-								]}
-							>
-								<Paintbrush size={20} color={theme.colors.primary} />
-							</View>
-							<Text
-								style={[styles.settingsItemTitle, { color: theme.colors.text }]}
-							>
-								Theme
-							</Text>
-						</View>
-						<ChevronRight size={20} color={theme.colors.textSecondary} />
-					</Pressable>
-				</Animated.View>
-
-				{/* Currency Settings Section */}
+				{/* Currency Settings Section */
 				<Animated.View
 					entering={FadeInUp.delay(250).duration(400)}
 					style={styles.section}

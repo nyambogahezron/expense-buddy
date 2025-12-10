@@ -63,9 +63,9 @@ export default function RootLayout() {
 					<Stack
 						screenOptions={{
 							headerShown: false,
-							statusBarStyle:
-								theme.name.toLocaleLowerCase() === 'light' ? 'dark' : 'light',
-							statusBarBackgroundColor: theme.colors.primary,
+							statusBarStyle: 'light',
+							statusBarTranslucent: true,
+							statusBarBackgroundColor: 'transparent',
 						}}
 						initialRouteName='(drawer)'
 					>
