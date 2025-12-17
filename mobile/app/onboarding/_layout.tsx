@@ -1,23 +1,14 @@
-import { router, Stack } from 'expo-router';
-import { useEffect } from 'react';
+import { Stack } from 'expo-router';
 
 export default function OnboardingLayout() {
-	const skipForDev = true;
-
-	useEffect(() => {
-		if (skipForDev) {
-			router.replace('/(drawer)/home/transactions');
-		}
-	}, [skipForDev]);
-
-	return (
-		<Stack
-			screenOptions={{
-				statusBarStyle: 'light',
-				statusBarBackgroundColor: 'transparent',
-				headerShown: false,
-				animation: 'fade',
-			}}
-		/>
-	);
+  return (
+    <Stack
+      screenOptions={{
+        statusBarStyle: 'light',
+        statusBarBackgroundColor: 'transparent',
+        headerShown: false,
+        animation: 'fade',
+      }}
+    />
+  );
 }

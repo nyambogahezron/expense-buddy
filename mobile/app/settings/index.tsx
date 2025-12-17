@@ -113,7 +113,7 @@ export default function SettingsScreen() {
 					</Pressable>
 				</Animated.View>
 
-				{/* Currency Settings Section */
+				{/* Currency Settings Section */}
 				<Animated.View
 					entering={FadeInUp.delay(250).duration(400)}
 					style={styles.section}

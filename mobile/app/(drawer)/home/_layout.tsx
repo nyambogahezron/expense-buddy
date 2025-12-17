@@ -23,6 +23,13 @@ export default function HomeTabLayout() {
 				sceneStyle: {
 					backgroundColor: theme.colors.background,
 				},
+				headerTitleStyle: {
+					color: theme.colors.text,
+					fontFamily: 'Poppins-SemiBold',
+					fontSize: 20,
+				},
+				headerTintColor: theme.colors.text,
+				headerTitleAlign: 'center',
 			}}
 		>
 			<Tabs.Screen

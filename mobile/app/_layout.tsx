@@ -7,12 +7,10 @@ import {
 	Inter_600SemiBold,
 	Inter_700Bold,
 } from '@expo-google-fonts/inter';
-import { useThemeStore } from '@/store/theme';
 import { useState, useEffect } from 'react';
 import * as SystemUI from 'expo-system-ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-
 import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import migrations from '../drizzle/migrations';
@@ -27,7 +25,6 @@ export default function RootLayout() {
 	const { success, error } = useMigrations(db, migrations);
 	useDrizzleStudio(db.$client);
 
-	const { theme } = useThemeStore();
 	const [isInitialized, setIsInitialized] = useState(false);
 
 	const [fontsLoaded] = useFonts({
@@ -67,7 +64,7 @@ export default function RootLayout() {
 							statusBarTranslucent: true,
 							statusBarBackgroundColor: 'transparent',
 						}}
-						initialRouteName='(drawer)'
+						initialRouteName='onboarding'
 					>
 						<Stack.Screen name='onboarding' options={{ headerShown: false }} />
 						<Stack.Screen name='(drawer)' options={{ headerShown: false }} />
