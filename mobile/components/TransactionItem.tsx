@@ -3,33 +3,37 @@ import { Transaction } from '@/types/transaction';
 import { format } from 'date-fns';
 import { CATEGORIES } from '@/types/transaction';
 import Animated, {
-	FadeInRight,
-	FadeOutLeft,
+	FadeInDown,
 	withRepeat,
 	withTiming,
 	useAnimatedStyle,
-} from 'react-native-reanimated';
-import { useThemeStore } from '@/store/theme';
+} from 'react-native-reanimated'
+import { design } from '@/constants/design'
+import { Feather } from '@expo/vector-icons'
 
 interface TransactionItemProps {
-	transaction: Transaction;
+	transaction: Transaction
 }
 
-export function TransactionItem({ transaction }: TransactionItemProps) {
-	const { amount, date, category, type, description } = transaction;
-	const { color } = CATEGORIES[category];
-	const { theme } = useThemeStore();
+export default function TransactionItem({ transaction }: TransactionItemProps) {
+	const { amount, date, category, type, description } = transaction
+	const catData = CATEGORIES[category] || CATEGORIES['other']
 
 	return (
-		<Animated.View
-			entering={FadeInRight}
-			exiting={FadeOutLeft}
-			style={[styles.container, { backgroundColor: theme.colors.surface }]}
-		>
+		<Animated.View entering={FadeInDown.springify()} style={styles.container}>
 			<View style={styles.left}>
-				<View style={[styles.categoryDot, { backgroundColor: color }]} />
-				<View>
-					<Text style={styles.description}>{description}</Text>
+				<View
+					style={[
+						styles.iconContainer,
+						{ backgroundColor: catData.color + '20' },
+					]}
+				>
+					<Feather name='tag' size={20} color={catData.color} />
+				</View>
+				<View style={styles.details}>
+					<Text style={styles.description} numberOfLines={1}>
+						{description}
+					</Text>
 					<Text style={styles.date}>
 						{format(new Date(date), 'MMM d, yyyy h:mm a')}
 					</Text>
@@ -38,90 +42,87 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
 			<Text
 				style={[
 					styles.amount,
-					{ color: type === 'income' ? '#10B981' : '#EF4444' },
+					{
+						color:
+							type === 'income' ? design.colors.success : design.colors.text,
+					},
 				]}
 			>
-				{type === 'income' ? '+' : '-'}${amount.toLocaleString()}
+				{type === 'income' ? '+' : '-'}${amount.toFixed(2)}
 			</Text>
 		</Animated.View>
-	);
+	)
 }
 
 export function TransactionSkeleton() {
-	const { theme } = useThemeStore();
 	const animatedStyle = useAnimatedStyle(() => ({
 		opacity: withRepeat(withTiming(0.5, { duration: 1000 }), -1, true),
-	}));
+	}))
 
 	return (
-		<Animated.View
-			style={[
-				styles.container,
-				{ backgroundColor: theme.colors.surface },
-				animatedStyle,
-			]}
-		>
+		<Animated.View style={[styles.container, animatedStyle]}>
 			<View style={styles.left}>
-				<View style={[styles.categoryDot, { backgroundColor: '#E5E7EB' }]} />
-				<View>
+				<View
+					style={[
+						styles.iconContainer,
+						{ backgroundColor: design.colors.border },
+					]}
+				/>
+				<View style={styles.details}>
 					<View style={[styles.skeletonText, { width: 120 }]} />
-					<View style={[styles.skeletonText, { width: 80, marginTop: 4 }]} />
+					<View style={[styles.skeletonText, { width: 80, marginTop: 8 }]} />
 				</View>
 			</View>
 			<View style={[styles.skeletonText, { width: 60 }]} />
 		</Animated.View>
-	);
+	)
 }
 
 const styles = StyleSheet.create({
 	container: {
-		width: '100%',
 		flexDirection: 'row',
 		alignItems: 'center',
 		justifyContent: 'space-between',
-		paddingVertical: 16,
-		backgroundColor: '#FFFFFF',
-		paddingHorizontal: 20,
-		marginHorizontal: 20,
-		marginBottom: 12,
-		borderRadius: 12,
-		shadowColor: '#000',
-		shadowOffset: {
-			width: 0,
-			height: 1,
-		},
-		shadowOpacity: 0.1,
-		shadowRadius: 2,
-		elevation: 2,
+		paddingVertical: design.spacing.md,
+		paddingHorizontal: design.spacing.md,
+		backgroundColor: design.colors.surface,
+		marginBottom: design.spacing.sm,
+		borderRadius: design.borderRadius.lg,
+		borderWidth: 1,
+		borderColor: design.colors.border,
 	},
 	left: {
 		flexDirection: 'row',
 		alignItems: 'center',
-		gap: 12,
+		gap: design.spacing.md,
+		flex: 1,
 	},
-	categoryDot: {
-		width: 12,
-		height: 12,
-		borderRadius: 6,
+	iconContainer: {
+		width: 48,
+		height: 48,
+		borderRadius: design.borderRadius.md,
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	details: {
+		flex: 1,
+		paddingRight: design.spacing.sm,
 	},
 	description: {
-		fontSize: 16,
-		fontFamily: 'Inter-SemiBold',
-		color: '#1F2937',
+		...design.typography.subtitle,
+		color: design.colors.text,
 		marginBottom: 4,
 	},
 	date: {
-		fontSize: 14,
-		fontFamily: 'Inter-Regular',
-		color: '#6B7280',
+		...design.typography.caption,
+		color: design.colors.textSecondary,
 	},
 	amount: {
-		fontSize: 16,
-		fontFamily: 'Inter-SemiBold',
+		...design.typography.h3,
 	},
 	skeletonText: {
 		height: 16,
-		backgroundColor: '#E5E7EB',
+		backgroundColor: design.colors.borderDark,
 		borderRadius: 4,
 	},
-});
+})

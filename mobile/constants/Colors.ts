@@ -1,20 +1,21 @@
-const tintColorDark = '#fff'
+import { palette } from './design'
 
+// Re-export old properties as aliases to our new premium palette to avoid breaking changes
 export const Colors = {
-	text: '#ECEDEE',
-	background: '#151718',
-	tint: tintColorDark,
-	icon: '#9BA1A6',
-	tabIconDefault: '#9BA1A6',
-	tabIconSelected: tintColorDark,
-	primary: '#6200ee',
-	primaryDark: '#3700b3',
-	secondary: '#03dac6',
-	secondaryDark: '#018786',
-	surface: '#ffffff',
-	error: '#e74c3c',
-	success: '#2ecc71',
-	textSecondary: '#666666',
-	border: '#e0e0e0',
-	disabled: '#9e9e9e',
+	text: palette.text,
+	background: palette.base,
+	tint: palette.primary,
+	icon: palette.textSecondary,
+	tabIconDefault: palette.textMuted,
+	tabIconSelected: palette.primary,
+	primary: palette.primary,
+	primaryDark: palette.primaryDark,
+	secondary: palette.secondary,
+	secondaryDark: palette.secondary,
+	surface: palette.surface,
+	error: palette.error,
+	success: palette.success,
+	textSecondary: palette.textSecondary,
+	border: palette.border,
+	disabled: palette.textMuted,
 }

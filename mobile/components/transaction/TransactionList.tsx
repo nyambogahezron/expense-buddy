@@ -1,33 +1,34 @@
 import React, { useCallback, useRef } from 'react';
 import { StyleSheet, Text, View, SectionList } from 'react-native';
-import TransactionItem from './TransactionItem';
+import TransactionItem from '../TransactionItem'
 import Animated, {
 	FadeInDown,
 	Layout,
 	useAnimatedStyle,
 	withSpring,
-} from 'react-native-reanimated';
+} from 'react-native-reanimated'
 import { Transaction } from '@/types/transaction';
 import { formatDate } from '@/utils/helpers';
 import Swipeable, {
 	SwipeableMethods,
-} from 'react-native-gesture-handler/ReanimatedSwipeable';
-import { useThemeStore } from '@/store/theme';
+} from 'react-native-gesture-handler/ReanimatedSwipeable'
+import { design } from '@/constants/design'
 import { useTransactionStore } from '@/store/transactions';
 import { Trash2 } from 'lucide-react-native';
 
 interface TransactionListProps {
-	transactions: Transaction[];
-	onTransactionPress: (id: string) => void;
+	transactions: Transaction[]
+	onTransactionPress: (id: string) => void
+	scrollEnabled?: boolean
 }
 
 export default function TransactionList({
 	transactions,
 	onTransactionPress,
+	scrollEnabled = true,
 }: TransactionListProps) {
-	const { theme } = useThemeStore();
-	const { deleteTransaction } = useTransactionStore();
-	const swipeableRefs = useRef<{ [key: string]: SwipeableMethods | null }>({});
+	const { deleteTransaction } = useTransactionStore()
+	const swipeableRefs = useRef<{ [key: string]: SwipeableMethods | null }>({})
 
 	const animatedStyle = useAnimatedStyle(() => {
 		return {
@@ -39,54 +40,52 @@ export default function TransactionList({
 					}),
 				},
 			],
-		};
-	});
+		}
+	})
 
 	const groupedTransactions = React.useMemo(() => {
-		const groups: { [key: string]: Transaction[] } = {};
+		const groups: { [key: string]: Transaction[] } = {}
 
 		transactions.forEach((transaction) => {
-			const date = new Date(transaction.date);
-			const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
+			const date = new Date(transaction.date)
+			const dateStr = date.toISOString().split('T')[0]
 
 			if (!groups[dateStr]) {
-				groups[dateStr] = [];
+				groups[dateStr] = []
 			}
 
-			groups[dateStr].push(transaction);
-		});
+			groups[dateStr].push(transaction)
+		})
 
 		return Object.keys(groups)
 			.map((date) => ({
 				title: date,
 				data: groups[date],
 			}))
-			.sort(
-				(a, b) => new Date(b.title).getTime() - new Date(a.title).getTime()
-			);
-	}, [transactions]);
+			.sort((a, b) => new Date(b.title).getTime() - new Date(a.title).getTime())
+	}, [transactions])
 
 	const renderSectionHeader = useCallback(
 		({ section: { title } }: { section: { title: string } }) => {
 			return (
 				<Animated.View
 					style={styles.sectionHeader}
-					entering={FadeInDown.delay(100).springify()}
+					entering={FadeInDown.delay(50).springify()}
 				>
 					<Text style={styles.sectionHeaderText}>{formatDate(title)}</Text>
 				</Animated.View>
-			);
+			)
 		},
-		[]
-	);
+		[],
+	)
 
 	const handleDelete = useCallback(
 		(id: string) => {
-			swipeableRefs.current[id]?.close();
-			deleteTransaction(id);
+			swipeableRefs.current[id]?.close()
+			deleteTransaction(id)
 		},
-		[deleteTransaction]
-	);
+		[deleteTransaction],
+	)
 
 	const renderRightActions = useCallback(
 		(transaction: Transaction) => {
@@ -94,27 +93,27 @@ export default function TransactionList({
 				<Animated.View
 					style={[
 						styles.rightAction,
-						{ backgroundColor: theme.colors.error },
+						{ backgroundColor: design.colors.error },
 						animatedStyle,
 					]}
 				>
 					<Trash2 size={24} color='#FFFFFF' />
 				</Animated.View>
-			);
+			)
 		},
-		[theme, animatedStyle]
-	);
+		[animatedStyle],
+	)
 
 	const renderItem = useCallback(
 		({ item, index }: { item: Transaction; index: number }) => {
 			return (
 				<Animated.View
-					entering={FadeInDown.delay(150 + index * 50).springify()}
+					entering={FadeInDown.delay(50 + index * 50).springify()}
 					layout={Layout.springify()}
 				>
 					<Swipeable
 						ref={(ref) => {
-							swipeableRefs.current[item.id] = ref;
+							swipeableRefs.current[item.id] = ref
 						}}
 						renderRightActions={() => renderRightActions(item)}
 						onSwipeableOpen={() => handleDelete(item.id)}
@@ -124,15 +123,15 @@ export default function TransactionList({
 						<TransactionItem transaction={item} />
 					</Swipeable>
 				</Animated.View>
-			);
+			)
 		},
-		[onTransactionPress, renderRightActions, handleDelete]
-	);
+		[renderRightActions, handleDelete],
+	)
 
 	return (
 		<View style={styles.container}>
 			<SectionList
-				scrollEnabled={false}
+				scrollEnabled={scrollEnabled}
 				sections={groupedTransactions}
 				keyExtractor={(item, index) => `${item.id}-${index}`}
 				renderItem={renderItem}
@@ -144,7 +143,7 @@ export default function TransactionList({
 				ItemSeparatorComponent={() => <View style={styles.separator} />}
 			/>
 		</View>
-	);
+	)
 }
 
 const styles = StyleSheet.create({
@@ -152,27 +151,27 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	listContent: {
-		paddingHorizontal: 5,
 		paddingBottom: 20,
 	},
 	sectionHeader: {
-		paddingVertical: 8,
-		marginVertical: 8,
-		borderRadius: 8,
+		marginTop: design.spacing.md,
+		marginBottom: design.spacing.sm,
 	},
 	sectionHeaderText: {
-		fontSize: 14,
-		fontWeight: '600',
-		color: '#666',
-		paddingHorizontal: 10,
+		...design.typography.caption,
+		color: design.colors.textMuted,
+		textTransform: 'uppercase',
+		letterSpacing: 1,
 	},
 	separator: {
-		height: 8,
+		height: 0,
 	},
 	rightAction: {
 		justifyContent: 'center',
 		alignItems: 'center',
 		width: 80,
 		height: '100%',
+		marginBottom: design.spacing.sm,
+		borderRadius: design.borderRadius.lg,
 	},
-});
+})

@@ -1,10 +1,11 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { CATEGORIES, TransactionCategory } from '@/types/transaction';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { design } from '@/constants/design'
 
 interface CategoryFilterProps {
-	selectedCategory: TransactionCategory | null;
-	onSelectCategory: (category: TransactionCategory | null) => void;
+	selectedCategory: TransactionCategory | null
+	onSelectCategory: (category: TransactionCategory | null) => void
 }
 
 export function CategoryFilter({
@@ -21,7 +22,14 @@ export function CategoryFilter({
 				style={[
 					styles.chip,
 					{
-						backgroundColor: selectedCategory === null ? '#6366F1' : '#F3F4F6',
+						backgroundColor:
+							selectedCategory === null
+								? design.colors.primary
+								: design.colors.surface,
+						borderColor:
+							selectedCategory === null
+								? design.colors.primary
+								: design.colors.border,
 					},
 				]}
 				onPress={() => onSelectCategory(null)}
@@ -29,7 +37,12 @@ export function CategoryFilter({
 				<Text
 					style={[
 						styles.chipText,
-						{ color: selectedCategory === null ? '#FFFFFF' : '#374151' },
+						{
+							color:
+								selectedCategory === null
+									? '#FFFFFF'
+									: design.colors.textSecondary,
+						},
 					]}
 				>
 					All
@@ -41,7 +54,12 @@ export function CategoryFilter({
 						style={[
 							styles.chip,
 							{
-								backgroundColor: selectedCategory === key ? color : '#F3F4F6',
+								backgroundColor:
+									selectedCategory === key
+										? color + '20'
+										: design.colors.surface,
+								borderColor:
+									selectedCategory === key ? color : design.colors.border,
 							},
 						]}
 						onPress={() => onSelectCategory(key as TransactionCategory)}
@@ -50,7 +68,10 @@ export function CategoryFilter({
 							style={[
 								styles.chipText,
 								{
-									color: selectedCategory === key ? '#FFFFFF' : '#374151',
+									color:
+										selectedCategory === key
+											? color
+											: design.colors.textSecondary,
 								},
 							]}
 						>
@@ -60,23 +81,23 @@ export function CategoryFilter({
 				</Animated.View>
 			))}
 		</ScrollView>
-	);
+	)
 }
 
 const styles = StyleSheet.create({
 	container: {
-		paddingHorizontal: 20,
-		paddingVertical: 12,
-		gap: 8,
+		paddingHorizontal: design.spacing.lg,
+		paddingVertical: design.spacing.sm,
+		gap: design.spacing.sm,
 	},
 	chip: {
 		paddingHorizontal: 16,
 		paddingVertical: 8,
-		borderRadius: 20,
-		height: 35,
+		borderRadius: design.borderRadius.pill,
+		borderWidth: 1,
 	},
 	chipText: {
-		fontSize: 14,
-		fontFamily: 'Inter-SemiBold',
+		...design.typography.body,
+		fontFamily: 'Inter-Medium',
 	},
-});
+})

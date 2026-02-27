@@ -9,32 +9,34 @@ import {
 	TextInput,
 	Alert,
 	Modal,
-} from 'react-native';
+} from 'react-native'
 import { Feather } from '@expo/vector-icons';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { TransactionCategory } from '@/types/transaction';
 import { CATEGORIES } from '@/constants/categories';
-import { formatDate } from '@/utils/helpers';
-import { useThemeStore } from '@/store/theme';
+import { formatDate } from '@/utils/helpers'
 import { useCategoryStore } from '@/store/categories';
+import { design } from '@/constants/design'
+import { AnimatedButton } from '@/components/ui/animated-button'
+import { AnimatedCard } from '@/components/ui/animated-card'
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface TransactionFormProps {
 	initialValues?: {
-		amount: string;
-		description: string;
-		category: TransactionCategory;
-		date: Date;
-		type: 'income' | 'expense';
-	};
+		amount: string
+		description: string
+		category: TransactionCategory
+		date: Date
+		type: 'income' | 'expense'
+	}
 	onSubmit: (values: {
-		amount: number;
-		description: string;
-		category: TransactionCategory;
-		date: Date;
-		type: 'income' | 'expense';
-	}) => void;
-	onCancel: () => void;
+		amount: number
+		description: string
+		category: TransactionCategory
+		date: Date
+		type: 'income' | 'expense'
+	}) => void
+	onCancel: () => void
 }
 
 export function TransactionForm({
@@ -42,32 +44,29 @@ export function TransactionForm({
 	onSubmit,
 	onCancel,
 }: TransactionFormProps) {
-	const { theme } = useThemeStore();
-	const { categories, loadCategories, addCategory } = useCategoryStore();
-	const styles = useMemo(() => createStyles(theme), [theme]);
+	const { categories, loadCategories, addCategory } = useCategoryStore()
 
-	// Form state
-	const [amount, setAmount] = useState(initialValues?.amount || '');
+	const [amount, setAmount] = useState(initialValues?.amount || '')
 	const [description, setDescription] = useState(
-		initialValues?.description || ''
-	);
+		initialValues?.description || '',
+	)
 	const [category, setCategory] = useState<TransactionCategory>(
-		initialValues?.category || 'other'
-	);
-	const [date, setDate] = useState(initialValues?.date || new Date());
+		initialValues?.category || 'other',
+	)
+	const [date, setDate] = useState(initialValues?.date || new Date())
 	const [type, setType] = useState<'income' | 'expense'>(
-		initialValues?.type || 'expense'
-	);
-	const [showDatePicker, setShowDatePicker] = useState(false);
+		initialValues?.type || 'expense',
+	)
+	const [showDatePicker, setShowDatePicker] = useState(false)
 
-	// Custom category modal state
-	const [showCustomCategoryModal, setShowCustomCategoryModal] = useState(false);
-	const [newCategoryName, setNewCategoryName] = useState('');
-	const [newCategoryIcon, setNewCategoryIcon] = useState('tag');
-	const [newCategoryColor, setNewCategoryColor] = useState('#6366F1');
-	const [creatingCategory, setCreatingCategory] = useState(false);
+	const [showCustomCategoryModal, setShowCustomCategoryModal] = useState(false)
+	const [newCategoryName, setNewCategoryName] = useState('')
+	const [newCategoryIcon, setNewCategoryIcon] = useState('tag')
+	const [newCategoryColor, setNewCategoryColor] = useState(
+		design.colors.primary,
+	)
+	const [creatingCategory, setCreatingCategory] = useState(false)
 
-	// Available icons for custom categories
 	const availableIcons = [
 		'tag',
 		'shopping-bag',
@@ -89,303 +88,267 @@ export function TransactionForm({
 		'cloud',
 		'zap',
 		'award',
-	];
-
+	]
 	const availableColors = [
-		'#6366F1',
-		'#8B5CF6',
+		design.colors.primary,
+		design.colors.secondary,
 		'#EC4899',
-		'#EF4444',
-		'#F59E0B',
-		'#10B981',
+		design.colors.error,
+		design.colors.warning,
+		design.colors.success,
 		'#3B82F6',
-		'#6B7280',
+		design.colors.textMuted,
 		'#84CC16',
 		'#F97316',
-	];
+	]
 
 	useEffect(() => {
-		loadCategories();
-	}, [loadCategories]);
+		loadCategories()
+	}, [loadCategories])
 
-	// Combine default categories with custom categories from database
 	const allCategories = useMemo(() => {
 		const defaultCategories = CATEGORIES.map((cat) => ({
-			id: cat.id,
-			name: cat.name,
-			icon: cat.icon,
-			color: cat.color,
+			...cat,
 			isCustom: false,
 			uniqueKey: `default-${cat.id}`,
-		}));
-
+		}))
 		const customCategories = categories.map((cat) => ({
-			id: cat.id,
-			name: cat.name,
-			icon: cat.icon,
-			color: cat.color,
+			...cat,
 			isCustom: true,
 			uniqueKey: `custom-${cat.id}`,
-		}));
-
-		return [...defaultCategories, ...customCategories];
-	}, [categories]);
+		}))
+		return [...defaultCategories, ...customCategories]
+	}, [categories])
 
 	const handleSubmit = () => {
 		if (!amount || !description) {
-			Alert.alert('Error', 'Please fill in all required fields');
-			return;
+			Alert.alert('Error', 'Please fill in all required fields')
+			return
 		}
-
-		const amountNum = parseFloat(amount);
+		const amountNum = parseFloat(amount)
 		if (isNaN(amountNum) || amountNum <= 0) {
-			Alert.alert('Error', 'Please enter a valid amount');
-			return;
+			Alert.alert('Error', 'Please enter a valid amount')
+			return
 		}
-
-		onSubmit({
-			amount: amountNum,
-			description,
-			category,
-			date,
-			type,
-		});
-	};
+		onSubmit({ amount: amountNum, description, category, date, type })
+	}
 
 	const handleCreateCustomCategory = async () => {
 		if (!newCategoryName.trim()) {
-			Alert.alert('Error', 'Please enter a category name');
-			return;
+			Alert.alert('Error', 'Please enter a category name')
+			return
 		}
-
 		try {
-			setCreatingCategory(true);
+			setCreatingCategory(true)
 			await addCategory({
 				name: newCategoryName.trim(),
 				icon: newCategoryIcon,
 				color: newCategoryColor,
 				description: '',
-			});
-
-			// Set the newly created category as selected
+			})
 			setCategory(
 				newCategoryName
 					.toLowerCase()
-					.replace(/\s+/g, '_') as TransactionCategory
-			);
-
-			setNewCategoryName('');
-			setNewCategoryIcon('tag');
-			setNewCategoryColor('#6366F1');
-			setShowCustomCategoryModal(false);
-
-			Alert.alert('Success', 'Category created successfully!');
+					.replace(/\s+/g, '_') as TransactionCategory,
+			)
+			setNewCategoryName('')
+			setNewCategoryIcon('tag')
+			setNewCategoryColor(design.colors.primary)
+			setShowCustomCategoryModal(false)
+			Alert.alert('Success', 'Category created successfully!')
 		} catch (error) {
-			Alert.alert('Error', 'Failed to create category');
+			Alert.alert('Error', 'Failed to create category')
 		} finally {
-			setCreatingCategory(false);
+			setCreatingCategory(false)
 		}
-	};
+	}
+
+	const isIncome = type === 'income'
 
 	return (
-		<ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-			{/* Transaction Type Toggle */}
-			<Animated.View
-				entering={FadeInDown.duration(200).delay(100)}
-				style={styles.section}
+		<View style={styles.wrapper}>
+			<ScrollView
+				showsVerticalScrollIndicator={false}
+				contentContainerStyle={styles.scrollContent}
 			>
-				<Text style={styles.sectionTitle}>Transaction Type</Text>
-				<View style={styles.typeToggle}>
+				<Animated.View
+					entering={FadeInDown.duration(300).delay(50)}
+					style={styles.segmentControl}
+				>
 					<TouchableOpacity
-						style={[
-							styles.typeButton,
-							type === 'expense' && styles.typeButtonActive,
-							{
-								backgroundColor:
-									type === 'expense'
-										? theme.colors.error
-										: theme.colors.surface,
-							},
-						]}
+						style={[styles.segmentBtn, !isIncome && styles.segmentBtnExpense]}
 						onPress={() => setType('expense')}
+						activeOpacity={0.8}
 					>
 						<Text
 							style={[
-								styles.typeButtonText,
-								{ color: type === 'expense' ? '#fff' : theme.colors.text },
+								styles.segmentText,
+								!isIncome && styles.segmentTextActive,
 							]}
 						>
 							Expense
 						</Text>
 					</TouchableOpacity>
 					<TouchableOpacity
-						style={[
-							styles.typeButton,
-							type === 'income' && styles.typeButtonActive,
-							{
-								backgroundColor:
-									type === 'income'
-										? theme.colors.success
-										: theme.colors.surface,
-							},
-						]}
+						style={[styles.segmentBtn, isIncome && styles.segmentBtnIncome]}
 						onPress={() => setType('income')}
+						activeOpacity={0.8}
 					>
 						<Text
-							style={[
-								styles.typeButtonText,
-								{ color: type === 'income' ? '#fff' : theme.colors.text },
-							]}
+							style={[styles.segmentText, isIncome && styles.segmentTextActive]}
 						>
 							Income
 						</Text>
 					</TouchableOpacity>
-				</View>
-			</Animated.View>
+				</Animated.View>
 
-			{/* Amount Input */}
-			<Animated.View
-				entering={FadeInDown.duration(200).delay(200)}
-				style={styles.section}
-			>
-				<Text style={styles.sectionTitle}>Amount</Text>
-				<View style={styles.amountInputContainer}>
-					<Text style={styles.currencySymbol}>$</Text>
-					<TextInput
-						style={styles.amountInput}
-						value={amount}
-						onChangeText={setAmount}
-						placeholder='0.00'
-						placeholderTextColor={theme.colors.textSecondary}
-						keyboardType='numeric'
-					/>
-				</View>
-			</Animated.View>
-
-			{/* Description Input */}
-			<Animated.View
-				entering={FadeInDown.duration(200).delay(300)}
-				style={styles.section}
-			>
-				<Text style={styles.sectionTitle}>Description</Text>
-				<TextInput
-					style={styles.textInput}
-					value={description}
-					onChangeText={setDescription}
-					placeholder='Enter description'
-					placeholderTextColor={theme.colors.textSecondary}
-					multiline
-					numberOfLines={3}
-				/>
-			</Animated.View>
-
-			{/* Category Selection */}
-			<Animated.View
-				entering={FadeInDown.duration(200).delay(400)}
-				style={styles.section}
-			>
-				<View style={styles.categoryHeader}>
-					<Text style={styles.sectionTitle}>Category</Text>
-					<TouchableOpacity
-						style={styles.addCategoryButton}
-						onPress={() => setShowCustomCategoryModal(true)}
-					>
-						<Feather name='plus' size={16} color={theme.colors.primary} />
-						<Text style={styles.addCategoryText}>Add Custom</Text>
-					</TouchableOpacity>
-				</View>
-
-				<ScrollView
-					horizontal
-					showsHorizontalScrollIndicator={false}
-					style={styles.categoriesScroll}
+				<Animated.View
+					entering={FadeInDown.duration(400).delay(100)}
+					style={styles.amountHeader}
 				>
-					{allCategories.map((cat) => {
-						const isSelected = category === cat.id;
-						return (
-							<TouchableOpacity
-								key={cat.uniqueKey}
-								style={[
-									styles.categoryItem,
-									isSelected && styles.categoryItemSelected,
-									{
-										borderColor: isSelected ? cat.color : theme.colors.border,
-									},
-								]}
-								onPress={() => setCategory(cat.id as TransactionCategory)}
-							>
-								<View
-									style={[
-										styles.categoryIcon,
-										{
-											backgroundColor: isSelected
-												? cat.color
-												: theme.colors.surface,
-										},
-									]}
+					<Text style={styles.amountLabel}>How much?</Text>
+					<View style={styles.amountInputRow}>
+						<Text
+							style={[
+								styles.currencySymbol,
+								isIncome ? styles.textSuccess : styles.textError,
+							]}
+						>
+							$
+						</Text>
+						<TextInput
+							style={[
+								styles.amountInput,
+								isIncome ? styles.textSuccess : styles.textError,
+							]}
+							value={amount}
+							onChangeText={setAmount}
+							placeholder='0.00'
+							placeholderTextColor={design.colors.borderDark}
+							keyboardType='decimal-pad'
+							autoFocus
+						/>
+					</View>
+				</Animated.View>
+
+				<Animated.View entering={FadeInUp.duration(400).delay(150)}>
+					<AnimatedCard style={styles.detailsCard} withHaptic={false}>
+						{/* Category */}
+						<View style={styles.fieldSection}>
+							<View style={styles.fieldHeader}>
+								<Text style={styles.fieldLabel}>Category</Text>
+								<TouchableOpacity
+									onPress={() => setShowCustomCategoryModal(true)}
+									style={styles.addCategoryBtn}
 								>
 									<Feather
-										name={cat.icon as any}
-										size={20}
-										color={isSelected ? '#fff' : cat.color}
+										name='plus-circle'
+										size={16}
+										color={design.colors.primary}
 									/>
-								</View>
-								<Text
-									style={[
-										styles.categoryName,
-										{ color: isSelected ? cat.color : theme.colors.text },
-									]}
-								>
-									{cat.name}
+									<Text style={styles.addCategoryText}>Custom</Text>
+								</TouchableOpacity>
+							</View>
+							<ScrollView
+								horizontal
+								showsHorizontalScrollIndicator={false}
+								contentContainerStyle={styles.categoryScroll}
+							>
+								{allCategories.map((cat) => {
+									const isSelected = category === cat.id
+									return (
+										<TouchableOpacity
+											key={cat.uniqueKey}
+											onPress={() => setCategory(cat.id as TransactionCategory)}
+											style={[
+												styles.catChip,
+												isSelected && {
+													backgroundColor: cat.color,
+													borderColor: cat.color,
+												},
+											]}
+										>
+											<Feather
+												name={cat.icon as any}
+												size={16}
+												color={
+													isSelected ? '#FFFFFF' : design.colors.textSecondary
+												}
+											/>
+											<Text
+												style={[
+													styles.catChipText,
+													isSelected && { color: '#FFFFFF' },
+												]}
+											>
+												{cat.name}
+											</Text>
+										</TouchableOpacity>
+									)
+								})}
+							</ScrollView>
+						</View>
+
+						<View style={styles.divider} />
+
+						{/* Date */}
+						<TouchableOpacity
+							style={styles.fieldSectionRow}
+							onPress={() => setShowDatePicker(true)}
+						>
+							<Text style={styles.fieldLabel}>Date</Text>
+							<View style={styles.valueRow}>
+								<Text style={styles.fieldValue}>
+									{formatDate(date.toISOString())}
 								</Text>
-								{cat.isCustom && (
-									<View style={styles.customBadge}>
-										<Text style={styles.customBadgeText}>Custom</Text>
-									</View>
-								)}
-							</TouchableOpacity>
-						);
-					})}
-				</ScrollView>
-			</Animated.View>
+								<Feather
+									name='chevron-right'
+									size={20}
+									color={design.colors.textMuted}
+								/>
+							</View>
+						</TouchableOpacity>
 
-			{/* Date Selection */}
-			<Animated.View
-				entering={FadeInDown.duration(200).delay(500)}
-				style={styles.section}
-			>
-				<Text style={styles.sectionTitle}>Date</Text>
-				<TouchableOpacity
-					style={styles.dateButton}
-					onPress={() => setShowDatePicker(true)}
-				>
-					<Feather name='calendar' size={20} color={theme.colors.primary} />
-					<Text style={styles.dateButtonText}>
-						{formatDate(date.toISOString())}
-					</Text>
-				</TouchableOpacity>
-			</Animated.View>
+						<View style={styles.divider} />
 
-			{/* Action Buttons */}
-			<Animated.View
-				entering={FadeInDown.duration(200).delay(600)}
-				style={styles.actionButtons}
-			>
-				<TouchableOpacity
-					style={[styles.button, styles.cancelButton]}
-					onPress={onCancel}
+						{/* Note */}
+						<View
+							style={[
+								styles.fieldSection,
+								{ borderBottomWidth: 0, paddingBottom: 0 },
+							]}
+						>
+							<Text style={styles.fieldLabel}>Note</Text>
+							<TextInput
+								style={styles.notesInput}
+								value={description}
+								onChangeText={setDescription}
+								placeholder='What was this for?'
+								placeholderTextColor={design.colors.textMuted}
+								multiline
+							/>
+						</View>
+					</AnimatedCard>
+				</Animated.View>
+
+				<Animated.View
+					entering={FadeInUp.duration(400).delay(250)}
+					style={styles.actionRow}
 				>
-					<Text style={styles.cancelButtonText}>Cancel</Text>
-				</TouchableOpacity>
-				<TouchableOpacity
-					style={[styles.button, styles.submitButton]}
-					onPress={handleSubmit}
-				>
-					<Text style={styles.submitButtonText}>
-						{initialValues ? 'Update' : 'Create'} Transaction
-					</Text>
-				</TouchableOpacity>
-			</Animated.View>
+					<AnimatedButton
+						title='Cancel'
+						variant='secondary'
+						onPress={onCancel}
+						style={styles.actionBtn}
+					/>
+					<AnimatedButton
+						title={initialValues ? 'Update' : 'Save'}
+						variant='primary'
+						onPress={handleSubmit}
+						style={styles.actionBtn}
+					/>
+				</Animated.View>
+			</ScrollView>
 
 			{showDatePicker && (
 				<DateTimePicker
@@ -393,10 +356,8 @@ export function TransactionForm({
 					mode='date'
 					display='default'
 					onChange={(event, selectedDate) => {
-						setShowDatePicker(false);
-						if (selectedDate) {
-							setDate(selectedDate);
-						}
+						setShowDatePicker(false)
+						if (selectedDate) setDate(selectedDate)
 					}}
 				/>
 			)}
@@ -411,67 +372,62 @@ export function TransactionForm({
 				<View style={styles.modalOverlay}>
 					<View style={styles.modalContent}>
 						<View style={styles.modalHeader}>
-							<Text style={styles.modalTitle}>Create Custom Category</Text>
+							<Text style={styles.modalTitle}>New Category</Text>
 							<TouchableOpacity
 								onPress={() => setShowCustomCategoryModal(false)}
 							>
-								<Feather name='x' size={24} color={theme.colors.text} />
+								<Feather name='x' size={24} color={design.colors.text} />
 							</TouchableOpacity>
 						</View>
 
-						<View style={styles.modalBody}>
-							<Text style={styles.inputLabel}>Category Name</Text>
+						<ScrollView showsVerticalScrollIndicator={false}>
+							<Text style={styles.inputLabel}>Name</Text>
 							<TextInput
 								style={styles.modalInput}
 								value={newCategoryName}
 								onChangeText={setNewCategoryName}
-								placeholder='Enter category name'
-								placeholderTextColor={theme.colors.textSecondary}
+								placeholder='e.g., Subscriptions'
+								placeholderTextColor={design.colors.textMuted}
 							/>
 
 							<Text style={styles.inputLabel}>Icon</Text>
-							<ScrollView
-								horizontal
-								showsHorizontalScrollIndicator={false}
-								style={styles.iconSelector}
-							>
+							<View style={styles.gridContainer}>
 								{availableIcons.map((iconName) => (
 									<TouchableOpacity
 										key={iconName}
 										style={[
 											styles.iconOption,
-											newCategoryIcon === iconName && styles.iconOptionSelected,
-											{
-												borderColor:
-													newCategoryIcon === iconName
-														? newCategoryColor
-														: theme.colors.border,
+											newCategoryIcon === iconName && {
+												borderColor: newCategoryColor,
 											},
 										]}
 										onPress={() => setNewCategoryIcon(iconName)}
 									>
 										<Feather
 											name={iconName as any}
-											size={20}
+											size={24}
 											color={
 												newCategoryIcon === iconName
 													? newCategoryColor
-													: theme.colors.text
+													: design.colors.textSecondary
 											}
 										/>
 									</TouchableOpacity>
 								))}
-							</ScrollView>
+							</View>
 
 							<Text style={styles.inputLabel}>Color</Text>
-							<View style={styles.colorSelector}>
+							<View style={styles.gridContainer}>
 								{availableColors.map((color) => (
 									<TouchableOpacity
 										key={color}
 										style={[
 											styles.colorOption,
 											{ backgroundColor: color },
-											newCategoryColor === color && styles.colorOptionSelected,
+											newCategoryColor === color && {
+												borderColor: design.colors.text,
+												borderWidth: 2,
+											},
 										]}
 										onPress={() => setNewCategoryColor(color)}
 									>
@@ -481,321 +437,241 @@ export function TransactionForm({
 									</TouchableOpacity>
 								))}
 							</View>
-						</View>
+						</ScrollView>
 
 						<View style={styles.modalActions}>
-							<TouchableOpacity
-								style={[styles.modalButton, styles.modalCancelButton]}
+							<AnimatedButton
+								title='Cancel'
+								variant='secondary'
 								onPress={() => setShowCustomCategoryModal(false)}
-							>
-								<Text style={styles.modalCancelText}>Cancel</Text>
-							</TouchableOpacity>
-							<TouchableOpacity
-								style={[styles.modalButton, styles.modalCreateButton]}
+								style={styles.actionBtn}
+							/>
+							<AnimatedButton
+								title='Create'
+								variant='primary'
 								onPress={handleCreateCustomCategory}
-								disabled={creatingCategory}
-							>
-								{creatingCategory ? (
-									<ActivityIndicator size='small' color='#fff' />
-								) : (
-									<Text style={styles.modalCreateText}>Create</Text>
-								)}
-							</TouchableOpacity>
+								isLoading={creatingCategory}
+								style={styles.actionBtn}
+							/>
 						</View>
 					</View>
 				</View>
 			</Modal>
-		</ScrollView>
-	);
+		</View>
+	)
 }
 
-const createStyles = (theme: any) =>
-	StyleSheet.create({
-		container: {
-			flex: 1,
-			padding: 20,
-		},
-		section: {
-			marginBottom: 24,
-		},
-		sectionTitle: {
-			fontSize: 16,
-			fontWeight: '600',
-			color: theme.colors.text,
-			marginBottom: 12,
-		},
-		typeToggle: {
-			flexDirection: 'row',
-			borderRadius: 8,
-			overflow: 'hidden',
-		},
-		typeButton: {
-			flex: 1,
-			paddingVertical: 12,
-			paddingHorizontal: 16,
-			alignItems: 'center',
-			justifyContent: 'center',
-		},
-		typeButtonActive: {
-			// Active styles are handled inline
-		},
-		typeButtonText: {
-			fontSize: 16,
-			fontWeight: '600',
-		},
-		amountInputContainer: {
-			flexDirection: 'row',
-			alignItems: 'center',
-			backgroundColor: theme.colors.surface,
-			borderRadius: 8,
-			paddingHorizontal: 16,
-			borderWidth: 1,
-			borderColor: theme.colors.border,
-		},
-		currencySymbol: {
-			fontSize: 24,
-			fontWeight: '600',
-			color: theme.colors.text,
-			marginRight: 8,
-		},
-		amountInput: {
-			flex: 1,
-			fontSize: 24,
-			fontWeight: '600',
-			color: theme.colors.text,
-			paddingVertical: 16,
-		},
-		textInput: {
-			backgroundColor: theme.colors.surface,
-			borderRadius: 8,
-			paddingHorizontal: 16,
-			paddingVertical: 12,
-			fontSize: 16,
-			color: theme.colors.text,
-			borderWidth: 1,
-			borderColor: theme.colors.border,
-			textAlignVertical: 'top',
-		},
-		categoryHeader: {
-			flexDirection: 'row',
-			justifyContent: 'space-between',
-			alignItems: 'center',
-			marginBottom: 12,
-		},
-		addCategoryButton: {
-			flexDirection: 'row',
-			alignItems: 'center',
-			paddingVertical: 6,
-			paddingHorizontal: 12,
-			borderRadius: 6,
-			backgroundColor: theme.colors.surface,
-			borderWidth: 1,
-			borderColor: theme.colors.primary,
-		},
-		addCategoryText: {
-			fontSize: 12,
-			fontWeight: '500',
-			color: theme.colors.primary,
-			marginLeft: 4,
-		},
-		categoriesScroll: {
-			marginHorizontal: -20,
-			paddingHorizontal: 20,
-		},
-		categoryItem: {
-			alignItems: 'center',
-			paddingVertical: 12,
-			paddingHorizontal: 16,
-			marginRight: 12,
-			borderRadius: 12,
-			borderWidth: 2,
-			backgroundColor: theme.colors.surface,
-			minWidth: 80,
-		},
-		categoryItemSelected: {
-			backgroundColor: theme.colors.surface,
-		},
-		categoryIcon: {
-			width: 40,
-			height: 40,
-			borderRadius: 20,
-			alignItems: 'center',
-			justifyContent: 'center',
-			marginBottom: 8,
-		},
-		categoryName: {
-			fontSize: 12,
-			fontWeight: '500',
-			textAlign: 'center',
-		},
-		customBadge: {
-			marginTop: 4,
-			paddingHorizontal: 6,
-			paddingVertical: 2,
-			backgroundColor: theme.colors.primary + '20',
-			borderRadius: 4,
-		},
-		customBadgeText: {
-			fontSize: 8,
-			fontWeight: '600',
-			color: theme.colors.primary,
-		},
-		dateButton: {
-			flexDirection: 'row',
-			alignItems: 'center',
-			backgroundColor: theme.colors.surface,
-			borderRadius: 8,
-			paddingHorizontal: 16,
-			paddingVertical: 12,
-			borderWidth: 1,
-			borderColor: theme.colors.border,
-		},
-		dateButtonText: {
-			fontSize: 16,
-			color: theme.colors.text,
-			marginLeft: 12,
-		},
-		actionButtons: {
-			flexDirection: 'row',
-			gap: 12,
-			marginTop: 20,
-			marginBottom: 40,
-		},
-		button: {
-			flex: 1,
-			paddingVertical: 16,
-			paddingHorizontal: 24,
-			borderRadius: 8,
-			alignItems: 'center',
-			justifyContent: 'center',
-		},
-		cancelButton: {
-			backgroundColor: theme.colors.surface,
-			borderWidth: 1,
-			borderColor: theme.colors.border,
-		},
-		cancelButtonText: {
-			fontSize: 16,
-			fontWeight: '600',
-			color: theme.colors.text,
-		},
-		submitButton: {
-			backgroundColor: theme.colors.primary,
-		},
-		submitButtonText: {
-			fontSize: 16,
-			fontWeight: '600',
-			color: '#fff',
-		},
-		// Modal styles
-		modalOverlay: {
-			flex: 1,
-			backgroundColor: 'rgba(0, 0, 0, 0.5)',
-			justifyContent: 'center',
-			alignItems: 'center',
-			padding: 20,
-		},
-		modalContent: {
-			backgroundColor: theme.colors.background,
-			borderRadius: 12,
-			padding: 20,
-			width: '100%',
-			maxWidth: 400,
-			maxHeight: '80%',
-		},
-		modalHeader: {
-			flexDirection: 'row',
-			justifyContent: 'space-between',
-			alignItems: 'center',
-			marginBottom: 20,
-		},
-		modalTitle: {
-			fontSize: 18,
-			fontWeight: '600',
-			color: theme.colors.text,
-		},
-		modalBody: {
-			marginBottom: 20,
-		},
-		inputLabel: {
-			fontSize: 14,
-			fontWeight: '600',
-			color: theme.colors.text,
-			marginBottom: 8,
-			marginTop: 16,
-		},
-		modalInput: {
-			backgroundColor: theme.colors.surface,
-			borderRadius: 8,
-			paddingHorizontal: 16,
-			paddingVertical: 12,
-			fontSize: 16,
-			color: theme.colors.text,
-			borderWidth: 1,
-			borderColor: theme.colors.border,
-		},
-		iconSelector: {
-			marginVertical: 8,
-		},
-		iconOption: {
-			width: 44,
-			height: 44,
-			borderRadius: 22,
-			backgroundColor: theme.colors.surface,
-			borderWidth: 2,
-			alignItems: 'center',
-			justifyContent: 'center',
-			marginRight: 12,
-		},
-		iconOptionSelected: {
-			borderWidth: 2,
-		},
-		colorSelector: {
-			flexDirection: 'row',
-			flexWrap: 'wrap',
-			gap: 12,
-			marginVertical: 8,
-		},
-		colorOption: {
-			width: 32,
-			height: 32,
-			borderRadius: 16,
-			alignItems: 'center',
-			justifyContent: 'center',
-			borderWidth: 2,
-			borderColor: 'transparent',
-		},
-		colorOptionSelected: {
-			borderColor: theme.colors.text,
-		},
-		modalActions: {
-			flexDirection: 'row',
-			gap: 12,
-		},
-		modalButton: {
-			flex: 1,
-			paddingVertical: 12,
-			paddingHorizontal: 20,
-			borderRadius: 8,
-			alignItems: 'center',
-			justifyContent: 'center',
-		},
-		modalCancelButton: {
-			backgroundColor: theme.colors.surface,
-			borderWidth: 1,
-			borderColor: theme.colors.border,
-		},
-		modalCancelText: {
-			fontSize: 16,
-			fontWeight: '600',
-			color: theme.colors.text,
-		},
-		modalCreateButton: {
-			backgroundColor: theme.colors.primary,
-		},
-		modalCreateText: {
-			fontSize: 16,
-			fontWeight: '600',
-			color: '#fff',
-		},
-	});
+const styles = StyleSheet.create({
+	wrapper: {
+		flex: 1,
+	},
+	scrollContent: {
+		padding: design.spacing.lg,
+		paddingBottom: 100,
+	},
+	segmentControl: {
+		flexDirection: 'row',
+		backgroundColor: design.colors.borderDark,
+		borderRadius: design.borderRadius.pill,
+		padding: 4,
+		marginBottom: design.spacing.xl,
+	},
+	segmentBtn: {
+		flex: 1,
+		paddingVertical: 10,
+		alignItems: 'center',
+		borderRadius: design.borderRadius.pill,
+	},
+	segmentBtnExpense: {
+		backgroundColor: design.colors.errorBg,
+	},
+	segmentBtnIncome: {
+		backgroundColor: design.colors.successBg,
+	},
+	segmentText: {
+		color: design.colors.textSecondary,
+		fontFamily: 'Inter-Medium',
+	},
+	segmentTextActive: {
+		color: design.colors.text,
+		fontFamily: 'Inter-SemiBold',
+	},
+	amountHeader: {
+		alignItems: 'center',
+		marginBottom: design.spacing.xl,
+	},
+	amountLabel: {
+		...design.typography.caption,
+		color: design.colors.textSecondary,
+		textTransform: 'uppercase',
+		letterSpacing: 1,
+		marginBottom: design.spacing.sm,
+	},
+	amountInputRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	currencySymbol: {
+		fontSize: 48,
+		fontFamily: 'Inter-Medium',
+		marginRight: 4,
+	},
+	amountInput: {
+		fontSize: 56,
+		fontFamily: 'Inter-Bold',
+		minWidth: 120,
+		textAlign: 'center',
+	},
+	textSuccess: {
+		color: design.colors.success,
+	},
+	textError: {
+		color: design.colors.error,
+	},
+	detailsCard: {
+		padding: 0,
+		overflow: 'hidden',
+		backgroundColor: design.colors.surface,
+	},
+	fieldSection: {
+		padding: design.spacing.lg,
+	},
+	fieldSectionRow: {
+		padding: design.spacing.lg,
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+	},
+	fieldHeader: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		marginBottom: design.spacing.sm,
+	},
+	fieldLabel: {
+		...design.typography.body,
+		color: design.colors.textSecondary,
+	},
+	addCategoryBtn: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 4,
+	},
+	addCategoryText: {
+		...design.typography.caption,
+		color: design.colors.primary,
+	},
+	categoryScroll: {
+		paddingVertical: design.spacing.xs,
+		gap: design.spacing.sm,
+	},
+	catChip: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		paddingVertical: 8,
+		paddingHorizontal: 12,
+		borderRadius: design.borderRadius.pill,
+		backgroundColor: design.colors.base,
+		borderWidth: 1,
+		borderColor: design.colors.border,
+		marginRight: design.spacing.sm,
+		gap: 6,
+	},
+	catChipText: {
+		...design.typography.caption,
+		color: design.colors.textSecondary,
+	},
+	valueRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: design.spacing.xs,
+	},
+	fieldValue: {
+		...design.typography.body,
+		color: design.colors.text,
+	},
+	notesInput: {
+		...design.typography.body,
+		color: design.colors.text,
+		paddingTop: design.spacing.sm,
+		minHeight: 60,
+		textAlignVertical: 'top',
+	},
+	divider: {
+		height: 1,
+		backgroundColor: design.colors.border,
+		marginLeft: design.spacing.lg,
+	},
+	actionRow: {
+		flexDirection: 'row',
+		gap: design.spacing.md,
+		marginTop: design.spacing.xl,
+	},
+	actionBtn: {
+		flex: 1,
+	},
+	modalOverlay: {
+		flex: 1,
+		backgroundColor: 'rgba(0,0,0,0.6)',
+		justifyContent: 'flex-end',
+	},
+	modalContent: {
+		backgroundColor: design.colors.base,
+		borderTopLeftRadius: design.borderRadius.xl,
+		borderTopRightRadius: design.borderRadius.xl,
+		padding: design.spacing.lg,
+		maxHeight: '85%',
+	},
+	modalHeader: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		marginBottom: design.spacing.lg,
+	},
+	modalTitle: {
+		...design.typography.h2,
+		color: design.colors.text,
+	},
+	inputLabel: {
+		...design.typography.subtitle,
+		color: design.colors.text,
+		marginTop: design.spacing.lg,
+		marginBottom: design.spacing.sm,
+	},
+	modalInput: {
+		backgroundColor: design.colors.surface,
+		borderRadius: design.borderRadius.lg,
+		padding: design.spacing.md,
+		color: design.colors.text,
+		...design.typography.body,
+	},
+	gridContainer: {
+		flexDirection: 'row',
+		flexWrap: 'wrap',
+		gap: design.spacing.md,
+	},
+	iconOption: {
+		width: 48,
+		height: 48,
+		borderRadius: design.borderRadius.md,
+		backgroundColor: design.colors.surface,
+		borderWidth: 2,
+		borderColor: 'transparent',
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	colorOption: {
+		width: 40,
+		height: 40,
+		borderRadius: design.borderRadius.pill,
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	modalActions: {
+		flexDirection: 'row',
+		gap: design.spacing.md,
+		marginTop: design.spacing.xl,
+		paddingBottom: Platform.OS === 'ios' ? 20 : 0,
+	},
+})

@@ -67,11 +67,11 @@ export default function RootLayout() {
 						initialRouteName='onboarding'
 					>
 						<Stack.Screen name='onboarding' options={{ headerShown: false }} />
-						<Stack.Screen name='(drawer)' options={{ headerShown: false }} />
+						<Stack.Screen name='(tabs)' options={{ headerShown: false }} />
 						<Stack.Screen name='budgets' options={{ headerShown: false }} />
 						<Stack.Screen
 							name='transactions'
-							options={{ headerShown: false }}
+							options={{ headerShown: false, presentation: 'modal' }}
 						/>
 						<Stack.Screen name='categories' options={{ headerShown: false }} />
 						<Stack.Screen
@@ -83,10 +83,6 @@ export default function RootLayout() {
 							options={{ headerShown: false, animation: 'slide_from_right' }}
 						/>
 						<Stack.Screen
-							name='profile'
-							options={{ headerShown: true, animation: 'slide_from_right' }}
-						/>
-						<Stack.Screen
 							name='notifications'
 							options={{ headerShown: false, animation: 'slide_from_right' }}
 						/>
@@ -96,5 +92,5 @@ export default function RootLayout() {
 				</GestureHandlerRootView>
 			</QueryClientProvider>
 		</SafeAreaProvider>
-	);
+	)
 }

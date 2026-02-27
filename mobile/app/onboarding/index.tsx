@@ -1,5 +1,11 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, View, Pressable, Dimensions } from 'react-native';
+import {
+	StyleSheet,
+	View,
+	Pressable,
+	Dimensions,
+	ImageBackground,
+} from 'react-native'
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import Animated, {
@@ -10,21 +16,21 @@ import Animated, {
 	useAnimatedStyle,
 	useSharedValue,
 	withTiming,
-	FadeInUp,
-} from 'react-native-reanimated';
+	FadeInDown,
+} from 'react-native-reanimated'
 import {
 	ArrowRight,
 	Check,
-	ChartLine as LineChart,
-	Shield,
+	ShieldCheck,
+	PieChart,
 	Wallet,
-} from 'lucide-react-native';
-import { useThemeStore } from '@/store/theme';
+} from 'lucide-react-native'
 import {
 	Directions,
 	Gesture,
 	GestureDetector,
-} from 'react-native-gesture-handler';
+} from 'react-native-gesture-handler'
+import { design } from '@/constants/design'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -33,7 +39,7 @@ const slides = [
 		id: 'track',
 		title: 'Track Your Finances',
 		description:
-			'Easily monitor your spending and income with our intuitive tracking system.',
+			'Easily monitor your spending and income with our intuitive tracking system. Know exactly where your money goes every month.',
 		icon: (props: any) => <Wallet {...props} />,
 		image:
 			'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&q=80&w=2340',
@@ -42,8 +48,8 @@ const slides = [
 		id: 'insights',
 		title: 'Smart Insights',
 		description:
-			'Get detailed analytics and insights to make better financial decisions.',
-		icon: (props: any) => <LineChart {...props} />,
+			'Get detailed analytics and visual insights to make better financial decisions. Spot trends and plan for the future.',
+		icon: (props: any) => <PieChart {...props} />,
 		image:
 			'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=2340',
 	},
@@ -51,172 +57,138 @@ const slides = [
 		id: 'secure',
 		title: 'Bank-Level Security',
 		description:
-			'Your data is protected with industry-leading security measures.',
-		icon: (props: any) => <Shield {...props} />,
+			'Your data is protected with industry-leading security measures. We take your privacy and financial data seriously.',
+		icon: (props: any) => <ShieldCheck {...props} />,
 		image:
 			'https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&q=80&w=2340',
 	},
-
-	{
-		id: 'get-started',
-		title: 'Get Started Now',
-		description:
-			'Join thousands of users and take control of your finances today.',
-		icon: (props: any) => <Wallet {...props} />,
-		image:
-			'https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&q=80&w=2340',
-	},
-];
+]
 
 export default function Onboarding() {
-	const { theme } = useThemeStore();
-	const [currentIndex, setCurrentIndex] = useState(0);
-	const translateX = useSharedValue(0);
-	const isLastSlide = currentIndex === slides.length - 1;
-	const [animationKey, setAnimationKey] = useState(0);
+	const [currentIndex, setCurrentIndex] = useState(0)
+	const translateX = useSharedValue(0)
+	const isLastSlide = currentIndex === slides.length - 1
+	const [animationKey, setAnimationKey] = useState(0)
 
 	const endOnboarding = () => {
-		setCurrentIndex(0);
-		router.replace('/(drawer)/home');
-	};
+		setCurrentIndex(0)
+		// Fixed navigation to use bottom tabs instead of deleted drawer layout
+		router.replace('/(tabs)')
+	}
 
 	const onNext = () => {
 		if (isLastSlide) {
-			endOnboarding();
+			endOnboarding()
 		} else {
-			const nextIndex = currentIndex + 1;
-
+			const nextIndex = currentIndex + 1
 			translateX.value = withTiming(-nextIndex * SCREEN_WIDTH, {
 				duration: 300,
 				easing: Easing.inOut(Easing.ease),
-			});
-			setCurrentIndex(nextIndex);
-			setAnimationKey((prev) => prev + 1); // Force animation to re-trigger
+			})
+			setCurrentIndex(nextIndex)
+			setAnimationKey((prev) => prev + 1) // Force animation
 		}
-	};
+	}
 
 	const onPrev = () => {
 		if (currentIndex > 0) {
-			const prevIndex = currentIndex - 1;
-
+			const prevIndex = currentIndex - 1
 			translateX.value = withTiming(-prevIndex * SCREEN_WIDTH, {
 				duration: 300,
 				easing: Easing.inOut(Easing.ease),
-			});
-			setCurrentIndex(prevIndex);
-			setAnimationKey((prev) => prev + 1); // Force animation to re-trigger
+			})
+			setCurrentIndex(prevIndex)
+			setAnimationKey((prev) => prev + 1)
 		}
-	};
+	}
 
 	const onSwipe = Gesture.Simultaneous(
 		Gesture.Fling()
 			.direction(Directions.LEFT)
 			.onEnd(() => {
-				'worklet:';
-				runOnJS(onNext)();
+				'worklet'
+				runOnJS(onNext)()
 			}),
 		Gesture.Fling()
 			.direction(Directions.RIGHT)
 			.onEnd(() => {
-				'worklet:';
-				runOnJS(onPrev)();
-			})
-	);
+				'worklet'
+				runOnJS(onPrev)()
+			}),
+	)
 
 	const animatedStyle = useAnimatedStyle(() => {
 		return {
 			transform: [{ translateX: translateX.value }],
-		};
-	});
+		}
+	})
 
-	// Force re-render of slide content on index change
 	useEffect(() => {
-		setAnimationKey((prev) => prev + 1);
-	}, [currentIndex]);
+		setAnimationKey((prev) => prev + 1)
+	}, [currentIndex])
 
 	return (
-		<Animated.View
-			style={[styles.container, { backgroundColor: theme.colors.background }]}
-		>
+		<Animated.View style={styles.container}>
 			<StatusBar style='light' />
 			<GestureDetector gesture={onSwipe}>
 				<Animated.View style={[animatedStyle, styles.slidesContainer]}>
 					{slides.map((slide, index) => (
-						<Animated.View
-							key={slide.id}
-							style={{ width: SCREEN_WIDTH, flex: 1, alignContent: 'center' }}
-						>
+						<Animated.View key={slide.id} style={styles.slideWrapper}>
+							{/* Background Crossfade */}
 							<Animated.View
 								key={`${slide.image}-${index}`}
 								entering={FadeIn.duration(600)}
 								exiting={FadeOut.duration(600)}
 								style={StyleSheet.absoluteFill}
 							>
-								<Animated.Image
+								<ImageBackground
 									source={{ uri: slide.image }}
-									style={[
-										StyleSheet.absoluteFill,
-										styles.backgroundImage,
-										{ width: SCREEN_WIDTH, flex: 1 },
-									]}
+									style={styles.backgroundImage}
 								/>
 							</Animated.View>
 							<View style={styles.overlay} />
 
 							<View style={styles.content}>
-								{/* Only render content for the current slide */}
+								{/* Text Content */}
 								{index === currentIndex && (
-									<Animated.View
-										key={`slide-content-${animationKey}`}
-										style={styles.slide}
-									>
+									<View style={styles.slideContent}>
 										<Animated.View
 											key={`icon-${animationKey}`}
-											entering={FadeInUp.duration(800).delay(200)}
+											entering={FadeInDown.duration(600).delay(200).springify()}
 											style={styles.iconContainer}
 										>
-											<slide.icon size={40} color={theme.colors.primary} />
+											<slide.icon size={36} color={design.colors.primary} />
 										</Animated.View>
-										<Animated.View
-											key={`title-wrapper-${animationKey}`}
-											entering={FadeInUp.duration(800).delay(400)}
+
+										<Animated.Text
+											key={`title-${animationKey}`}
+											entering={FadeInDown.duration(600).delay(300).springify()}
+											style={styles.title}
 										>
-											<Animated.Text
-												style={[styles.title, { color: theme.colors.surface }]}
-											>
-												{slide.title}
-											</Animated.Text>
-										</Animated.View>
-										<Animated.View
-											key={`desc-wrapper-${animationKey}`}
-											entering={FadeInUp.duration(800).delay(600)}
+											{slide.title}
+										</Animated.Text>
+
+										<Animated.Text
+											key={`desc-${animationKey}`}
+											entering={FadeInDown.duration(600).delay(400).springify()}
+											style={styles.description}
 										>
-											<Animated.Text
-												style={[
-													styles.description,
-													{ color: theme.colors.surface },
-												]}
-											>
-												{slide.description}
-											</Animated.Text>
-										</Animated.View>
-									</Animated.View>
+											{slide.description}
+										</Animated.Text>
+									</View>
 								)}
 
+								{/* Footer Controls */}
 								<View style={styles.footer}>
 									<View style={styles.pagination}>
 										{slides.map((_, i) => (
-											<View
+											<Animated.View
 												key={i}
 												style={[
 													styles.paginationDot,
-													{
-														backgroundColor:
-															i === currentIndex
-																? theme.colors.primary
-																: theme.colors.surface,
-														opacity: i === currentIndex ? 1 : 0.5,
-													},
+													i === currentIndex
+														? styles.paginationDotActive
+														: styles.paginationDotInactive,
 												]}
 											/>
 										))}
@@ -226,14 +198,13 @@ export default function Onboarding() {
 										onPress={onNext}
 										style={({ pressed }) => [
 											styles.button,
-											{ backgroundColor: theme.colors.primary },
-											pressed && { opacity: 0.8 },
+											pressed && styles.buttonPressed,
 										]}
 									>
 										{isLastSlide ? (
-											<Check size={24} color={theme.colors.surface} />
+											<Check size={24} color='#FFF' />
 										) : (
-											<ArrowRight size={24} color={theme.colors.surface} />
+											<ArrowRight size={24} color='#FFF' />
 										)}
 									</Pressable>
 								</View>
@@ -243,93 +214,97 @@ export default function Onboarding() {
 				</Animated.View>
 			</GestureDetector>
 		</Animated.View>
-	);
+	)
 }
 
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
+		backgroundColor: '#000',
 	},
 	slidesContainer: {
 		flex: 1,
 		flexDirection: 'row',
 		width: SCREEN_WIDTH * slides.length,
 	},
-	slide: {
+	slideWrapper: {
 		width: SCREEN_WIDTH,
 		flex: 1,
-		marginTop: 100,
-		alignItems: 'center',
-		marginHorizontal: 'auto',
-		maxWidth: 1200,
 	},
 	backgroundImage: {
-		opacity: 0.8,
+		flex: 1,
+		width: SCREEN_WIDTH,
 	},
 	overlay: {
 		...StyleSheet.absoluteFillObject,
-		backgroundColor: 'rgba(0, 0, 0, 0.4)',
+		backgroundColor: 'rgba(0,0,0,0.6)', // Deep semi-transparent overlay
 	},
 	content: {
 		flex: 1,
-		justifyContent: 'space-between',
-		marginHorizontal: 'auto',
-		maxWidth: 1200,
+		justifyContent: 'flex-end',
+		paddingBottom: 40,
+		paddingHorizontal: design.spacing.xl,
 	},
-
+	slideContent: {
+		alignItems: 'flex-start',
+		marginBottom: 60,
+	},
 	iconContainer: {
-		width: 80,
-		height: 80,
-		borderRadius: 40,
-		backgroundColor: 'rgba(255, 255, 255, 0.9)',
+		width: 64,
+		height: 64,
+		borderRadius: 24,
+		backgroundColor: 'rgba(255, 255, 255, 0.95)',
 		justifyContent: 'center',
 		alignItems: 'center',
-		marginBottom: 24,
+		marginBottom: design.spacing.xl,
 	},
 	title: {
-		fontSize: 32,
-		fontFamily: 'Inter-Bold',
-		textAlign: 'center',
-		marginBottom: 16,
+		...design.typography.h1,
+		color: '#FFF',
+		marginBottom: design.spacing.md,
 	},
 	description: {
-		fontSize: 18,
-		fontFamily: 'Inter-Regular',
-		textAlign: 'center',
-		opacity: 0.9,
-		lineHeight: 30,
-		paddingHorizontal: 24,
+		...design.typography.body,
+		fontSize: 16,
+		color: 'rgba(255, 255, 255, 0.8)',
+		lineHeight: 24,
 	},
 	footer: {
 		flexDirection: 'row',
 		alignItems: 'center',
 		justifyContent: 'space-between',
-		marginBottom: 40,
-		paddingHorizontal: 24,
 	},
 	pagination: {
 		flexDirection: 'row',
 		gap: 8,
 	},
 	paginationDot: {
-		width: 8,
 		height: 8,
 		borderRadius: 4,
 	},
+	paginationDotActive: {
+		width: 24,
+		backgroundColor: design.colors.primary,
+	},
+	paginationDotInactive: {
+		width: 8,
+		backgroundColor: 'rgba(255,255,255,0.3)',
+	},
 	button: {
-		width: 56,
-		height: 56,
-		borderRadius: 28,
-		backgroundColor: 'white',
+		width: 64,
+		height: 64,
+		borderRadius: 32,
+		backgroundColor: design.colors.primary,
 		justifyContent: 'center',
 		alignItems: 'center',
-		shadowColor: '#000',
-		shadowOffset: {
-			width: 0,
-			height: 2,
-		},
-		shadowOpacity: 0.25,
-		shadowRadius: 3.84,
-		elevation: 5,
+		shadowColor: design.colors.primary,
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.3,
+		shadowRadius: 8,
+		elevation: 8,
 	},
-});
+	buttonPressed: {
+		opacity: 0.8,
+		transform: [{ scale: 0.96 }],
+	},
+})
